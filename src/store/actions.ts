@@ -26,6 +26,7 @@ export type PortalAction =
       fornecedor: string;
       valor: number;
       fileName: string;
+      fileDataUrl?: string;
       by: string;
     }
   | { type: "DESLIGAR_COLABORADOR"; colabId: number; date: string; motivo: string; by: string }

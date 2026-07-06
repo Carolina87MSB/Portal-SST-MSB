@@ -113,6 +113,7 @@ export function portalReducer(state: PortalState, action: PortalAction): PortalS
         fornecedor: action.fornecedor,
         valor: action.valor,
         fileName: action.fileName,
+        fileDataUrl: action.fileDataUrl,
         ts: stamp(),
         responsavel: action.by,
       };

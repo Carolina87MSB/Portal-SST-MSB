@@ -137,6 +137,8 @@ export interface AttachmentExame {
   fornecedor: string;
   valor: number;
   fileName: string;
+  /** Conteúdo do arquivo como data URL (base64), quando o usuário anexa um documento. Sem backend de arquivos, fica no próprio estado local. */
+  fileDataUrl?: string;
   ts: string;
   responsavel: string;
 }

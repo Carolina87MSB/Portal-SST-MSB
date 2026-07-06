@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import type { ChangeEvent } from "react";
 import { Modal } from "../../components/ui/Modal";
 import { Button } from "../../components/ui/Button";
 import { LabeledField, Select, TextInput } from "../../components/ui/Field";
@@ -19,6 +20,7 @@ export interface AnexarExamePayload {
   fornecedor: string;
   valor: number;
   fileName: string;
+  fileDataUrl?: string;
 }
 
 interface AnexarExameModalProps {
@@ -56,6 +58,7 @@ export function AnexarExameModal({
   const [fornecedor, setFornecedor] = useState("");
   const [valorInput, setValorInput] = useState("");
   const [fileName, setFileName] = useState("");
+  const [fileDataUrl, setFileDataUrl] = useState<string | undefined>(undefined);
 
   const selectedColab = useMemo(() => colaboradores.find((c) => c.id === colabId) ?? null, [colaboradores, colabId]);
 
@@ -116,8 +119,22 @@ export function AnexarExameModal({
       fornecedor: fornecedor.trim(),
       valor: Number(String(valorInput).replace(",", ".")) || 0,
       fileName,
+      fileDataUrl,
     });
     onClose();
+  }
+
+  function handleFileChange(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) {
+      setFileName("");
+      setFileDataUrl(undefined);
+      return;
+    }
+    setFileName(file.name);
+    const reader = new FileReader();
+    reader.onload = () => setFileDataUrl(typeof reader.result === "string" ? reader.result : undefined);
+    reader.readAsDataURL(file);
   }
 
   return (
@@ -202,8 +219,8 @@ export function AnexarExameModal({
         </LabeledField>
       </div>
 
-      <LabeledField label="Arquivo / comprovante (opcional)">
-        <input type="file" onChange={(e) => setFileName(e.target.files?.[0]?.name ?? "")} />
+      <LabeledField label="Arquivo / comprovante (opcional)" hint={fileName ? `Selecionado: ${fileName}` : undefined}>
+        <input type="file" onChange={handleFileChange} />
       </LabeledField>
     </Modal>
   );

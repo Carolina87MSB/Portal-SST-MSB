@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Paperclip, Plus, UserMinus } from "lucide-react";
+import { FileText, Paperclip, Plus, UserMinus } from "lucide-react";
 import { Avatar, Button, Drawer, StatusBadge } from "../../components/ui";
 import { useAuth } from "../../auth/AuthContext";
 import { usePortalStore } from "../../store/PortalStoreContext";
@@ -63,8 +63,14 @@ export function ExameFichaDrawer({ colabId, onClose }: ExameFichaDrawerProps) {
       fornecedor: payload.fornecedor,
       valor: payload.valor,
       fileName: payload.fileName,
+      fileDataUrl: payload.fileDataUrl,
       by: user.email,
     });
+  }
+
+  /** Anexo mais recente para um exame específico deste colaborador (se houver). */
+  function attachmentFor(proc: string) {
+    return attachments.find((a) => a.proc === proc);
   }
 
   function handleDesligar(dateBR: string, motivo: string) {
@@ -123,6 +129,7 @@ export function ExameFichaDrawer({ colabId, onClose }: ExameFichaDrawerProps) {
           {colaborador.exames.map((exame) => {
             const status = statusDoRegistro(exame);
             const podeAnexar = canEdit && !desligamento && status !== "Em dia" && status !== "A vencer";
+            const anexo = attachmentFor(exame.proc);
             return (
               <div key={exame.proc} className={styles.examRow}>
                 <div className={styles.examInfo}>
@@ -133,6 +140,24 @@ export function ExameFichaDrawer({ colabId, onClose }: ExameFichaDrawerProps) {
                 </div>
                 <div className={styles.examRight}>
                   <StatusBadge label={status} tone={toneForStatus(status)} />
+                  {anexo ? (
+                    anexo.fileDataUrl ? (
+                      <a
+                        href={anexo.fileDataUrl}
+                        download={anexo.fileName || undefined}
+                        target="_blank"
+                        rel="noreferrer"
+                        className={styles.docLink}
+                        title={`Documento: ${anexo.fileName || "arquivo anexado"}`}
+                      >
+                        <FileText size={13} />
+                      </a>
+                    ) : (
+                      <span className={styles.docLink} title={`Documento: ${anexo.fileName || "sem nome de arquivo"} (conteúdo não capturado)`}>
+                        <FileText size={13} />
+                      </span>
+                    )
+                  ) : null}
                   {podeAnexar ? (
                     <button type="button" className={shared.iconButton} title="Anexar exame" onClick={() => setAnexarProc(exame.proc)}>
                       <Paperclip size={13} />
@@ -160,7 +185,18 @@ export function ExameFichaDrawer({ colabId, onClose }: ExameFichaDrawerProps) {
                 Realizado em <span className="mono">{a.dataISO}</span> · {a.fornecedor || "Fornecedor não informado"}
               </div>
               <div className={styles.attachMeta}>
-                {a.fileName || "Sem arquivo anexado"} · lançado por {a.responsavel} em {a.ts}
+                {a.fileName ? (
+                  a.fileDataUrl ? (
+                    <a href={a.fileDataUrl} download={a.fileName} target="_blank" rel="noreferrer" className={styles.attachFileLink}>
+                      <FileText size={12} /> {a.fileName}
+                    </a>
+                  ) : (
+                    a.fileName
+                  )
+                ) : (
+                  "Sem arquivo anexado"
+                )}{" "}
+                · lançado por {a.responsavel} em {a.ts}
               </div>
             </div>
           ))}
