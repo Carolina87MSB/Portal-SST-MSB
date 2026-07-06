@@ -1,0 +1,30 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.toolbarCard {
+  padding: 14px 16px;
+}
+
+.colabCell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+  color: var(--color-navy);
+}
+
+.fichaLink {
+  background: none;
+  border: none;
+  color: var(--color-brand-dark);
+  font-weight: 600;
+  font-size: 12.5px;
+  cursor: pointer;
+  padding: 0;
+}
+.fichaLink:hover {
+  text-decoration: underline;
+}
