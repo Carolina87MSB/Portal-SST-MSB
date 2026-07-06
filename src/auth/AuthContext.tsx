@@ -1,46 +1,57 @@
-import { createContext, useCallback, useContext, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
+import type { Session } from "@supabase/supabase-js";
+import { supabase, supabaseConfigured } from "../lib/supabaseClient";
 import type { AuthUser } from "../types/domain";
 
-const STORAGE_KEY = "msb_sst_user_v1";
 const DOMINIO_CORPORATIVO = "@msbbrasil.com";
 
-// Lista de e-mails liberados individualmente pelo RH. Não há autocadastro.
-// NOTA DE SEGURANÇA: esta é uma verificação client-side, adequada para uma
-// demonstração/uso interno controlado. Antes de expor este portal fora de uma
-// rede confiável, troque por autenticação real (SSO/OAuth corporativo) no backend.
-const EMAILS_AUTORIZADOS = ["carolina.cruz@msbbrasil.com", "leslie.souza@msbbrasil.com"];
-
-function autorizado(email: string): boolean {
-  return EMAILS_AUTORIZADOS.includes(email.trim().toLowerCase());
+function toAuthUser(session: Session | null): AuthUser | null {
+  const email = session?.user?.email;
+  if (!email) return null;
+  // Toda conta autenticada aqui é RH: não há autocadastro (ver requestMagicLink,
+  // shouldCreateUser: false) — contas só existem porque o RH as criou manualmente
+  // no painel do Supabase. Se um dia houver um papel "somente leitura", ele viria
+  // de uma tabela `profiles` associada ao usuário; hoje é sempre 'rh'.
+  return { email, role: "rh" };
 }
 
-function loadPersistedUser(): AuthUser | null {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as AuthUser;
-    if (parsed?.email && autorizado(parsed.email)) return parsed;
-    localStorage.removeItem(STORAGE_KEY);
-  } catch {
-    // ignora storage indisponível
-  }
-  return null;
-}
+type AuthStatus = "loading" | "signed-out" | "signed-in";
 
 interface AuthContextValue {
   user: AuthUser | null;
-  login: (email: string) => { ok: true } | { ok: false; error: string };
-  logout: () => void;
+  status: AuthStatus;
+  /** Envia o link de acesso por e-mail. Não cria conta nova — só contas já provisionadas pelo RH funcionam. */
+  requestMagicLink: (email: string) => Promise<{ ok: true } | { ok: false; error: string }>;
+  logout: () => Promise<void>;
   canEdit: boolean;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<AuthUser | null>(loadPersistedUser);
+  const [session, setSession] = useState<Session | null>(null);
+  const [status, setStatus] = useState<AuthStatus>("loading");
 
-  const login = useCallback((rawEmail: string): { ok: true } | { ok: false; error: string } => {
+  useEffect(() => {
+    if (!supabaseConfigured) {
+      setStatus("signed-out");
+      return;
+    }
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      setStatus(data.session ? "signed-in" : "signed-out");
+    });
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      setSession(newSession);
+      setStatus(newSession ? "signed-in" : "signed-out");
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const requestMagicLink = useCallback(async (rawEmail: string): Promise<{ ok: true } | { ok: false; error: string }> => {
     const email = rawEmail.trim().toLowerCase();
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
       return { ok: false, error: "Informe um e-mail válido." };
@@ -48,32 +59,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!email.endsWith(DOMINIO_CORPORATIVO)) {
       return { ok: false, error: "Acesso restrito ao e-mail corporativo MSB (@msbbrasil.com). E-mails pessoais não são permitidos." };
     }
-    if (!autorizado(email)) {
-      return { ok: false, error: "E-mail não autorizado. O acesso é liberado individualmente pelo RH — não há cadastro aberto de usuários." };
+    if (!supabaseConfigured) {
+      return { ok: false, error: "Supabase não configurado nesta instalação — veja .env.example." };
     }
-    const authUser: AuthUser = { email, role: "rh" };
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(authUser));
-    } catch {
-      // segue apenas em memória
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: { shouldCreateUser: false },
+    });
+    if (error) {
+      // Supabase retorna "Signups not allowed for otp" (ou similar) quando o e-mail
+      // não tem conta provisionada — traduzimos para a mensagem que o RH já conhecia.
+      if (/signup|not allowed|not found/i.test(error.message)) {
+        return {
+          ok: false,
+          error: "E-mail não autorizado. O acesso é liberado individualmente pelo RH — não há cadastro aberto de usuários.",
+        };
+      }
+      return { ok: false, error: error.message };
     }
-    setUser(authUser);
     return { ok: true };
   }, []);
 
-  const logout = useCallback(() => {
-    try {
-      localStorage.removeItem(STORAGE_KEY);
-    } catch {
-      // ignora
-    }
-    setUser(null);
+  const logout = useCallback(async () => {
+    if (supabaseConfigured) await supabase.auth.signOut();
+    setSession(null);
+    setStatus("signed-out");
   }, []);
 
-  const value = useMemo<AuthContextValue>(
-    () => ({ user, login, logout, canEdit: user?.role === "rh" }),
-    [user, login, logout],
-  );
+  const value = useMemo<AuthContextValue>(() => {
+    const user = toAuthUser(session);
+    return { user, status, requestMagicLink, logout, canEdit: user?.role === "rh" };
+  }, [session, status, requestMagicLink, logout]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

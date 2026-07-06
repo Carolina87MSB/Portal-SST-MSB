@@ -1,6 +1,7 @@
-import type { CargoOcupacional } from "../types/domain";
+import type { CargoOcupacional, Colaborador } from "../types/domain";
 
 export type PortalAction =
+  | { type: "SET_COLABORADORES"; colaboradores: Colaborador[] }
   | {
       type: "REGISTRAR_ENTREGA_EPI";
       colabId: number;

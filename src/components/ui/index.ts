@@ -15,3 +15,4 @@ export { Tabs } from "./Tabs";
 export type { TabItem } from "./Tabs";
 export { EmptyState } from "./EmptyState";
 export { SegmentedControl } from "./SegmentedControl";
+export { FullPageLoader } from "./FullPageLoader";

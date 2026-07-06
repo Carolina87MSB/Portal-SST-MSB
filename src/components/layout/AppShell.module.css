@@ -16,3 +16,29 @@
   overflow-y: auto;
   padding: 24px 28px;
 }
+
+.errorScreen {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: var(--color-bg);
+  color: var(--color-danger);
+  text-align: center;
+  padding: 24px;
+}
+
+.errorTitle {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-navy);
+}
+
+.errorDetail {
+  font-size: 13px;
+  color: var(--color-muted);
+  max-width: 480px;
+}

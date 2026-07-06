@@ -9,7 +9,7 @@ function uid(prefix: string): string {
 
 const RESPONSAVEL_PADRAO = "carolina.cruz@msbbrasil.com";
 
-function seedEntregas(colaboradores: PortalState["colaboradores"]): EntregaEpi[] {
+export function seedEntregas(colaboradores: PortalState["colaboradores"]): EntregaEpi[] {
   const byId = (id: number) => colaboradores.find((c) => c.id === id);
   const mk = (
     colabId: number,
@@ -51,7 +51,7 @@ function seedEntregas(colaboradores: PortalState["colaboradores"]): EntregaEpi[]
   ];
 }
 
-function seedFardEntregas(colaboradores: PortalState["colaboradores"]): FardamentoEntrega[] {
+export function seedFardEntregas(colaboradores: PortalState["colaboradores"]): FardamentoEntrega[] {
   const byId = (id: number) => colaboradores.find((c) => c.id === id);
   const mk = (
     colabId: number,
@@ -87,7 +87,7 @@ function seedFardEntregas(colaboradores: PortalState["colaboradores"]): Fardamen
   ];
 }
 
-function seedFardReparos(colaboradores: PortalState["colaboradores"]): FardamentoReparo[] {
+export function seedFardReparos(colaboradores: PortalState["colaboradores"]): FardamentoReparo[] {
   const byId = (id: number) => colaboradores.find((c) => c.id === id);
   const mk = (
     colabId: number,
@@ -143,8 +143,15 @@ const FARDAMENTO_TIPOS_SEED: Array<[string, number]> = [
   ["Jaleco Técnico", 55],
 ];
 
+/**
+ * Estado inicial ANTES de colaboradores chegarem do Supabase (ver
+ * PortalStoreContext, que despacha SET_COLABORADORES assim que a sessão do
+ * usuário é confirmada). Entregas/fardamento de demonstração são semeados
+ * pelo reducer só depois que os colaboradores reais estiverem carregados —
+ * caso contrário ficariam com CPF/nome em branco.
+ */
 export function buildInitialState(): PortalState {
-  const colaboradores = structuredClone(portalRepository.getColaboradores());
+  const colaboradores: PortalState["colaboradores"] = [];
 
   const epiPrecos: Record<string, PrecoInfo> = {};
   portalRepository.getEpiCatalogo().forEach((c) => {
@@ -164,14 +171,14 @@ export function buildInitialState(): PortalState {
   return {
     version: 1,
     colaboradores,
-    entregas: seedEntregas(colaboradores),
+    entregas: [],
     attachments: [],
     desligados: {},
     epiPrecos,
     examePrecos,
     fardamentoPrecos,
-    fardamentoEntregas: seedFardEntregas(colaboradores),
-    fardamentoReparos: seedFardReparos(colaboradores),
+    fardamentoEntregas: [],
+    fardamentoReparos: [],
     matrizAdd: [],
     custosEpi: CUSTOS_EPI_SEED,
     custosFardamento: CUSTOS_FARDAMENTO_SEED,

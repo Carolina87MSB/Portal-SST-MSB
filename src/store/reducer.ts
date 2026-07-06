@@ -2,7 +2,7 @@ import { stamp } from "../domain/dates";
 import { titleCase } from "../domain/text";
 import type { PrecoInfo } from "../types/domain";
 import type { PortalAction } from "./actions";
-import { buildInitialState, uid } from "./seed";
+import { buildInitialState, seedEntregas, seedFardEntregas, seedFardReparos, uid } from "./seed";
 import type { PortalState } from "./types";
 
 function nomeDoColab(state: PortalState, colabId: number): string {
@@ -18,6 +18,25 @@ function atualizarPreco(atual: PrecoInfo | undefined, valor: number, fornecedor:
 
 export function portalReducer(state: PortalState, action: PortalAction): PortalState {
   switch (action.type) {
+    case "SET_COLABORADORES": {
+      // Seeds de demonstração (entregas/fardamento) só fazem sentido depois que
+      // os colaboradores reais chegam do Supabase — semeamos uma única vez, no
+      // primeiro carregamento (arrays ainda vazios), para não sobrescrever
+      // lançamentos que o RH já tenha feito nesta sessão.
+      const primeiraCarga = state.colaboradores.length === 0;
+      return {
+        ...state,
+        colaboradores: action.colaboradores,
+        entregas: primeiraCarga && state.entregas.length === 0 ? seedEntregas(action.colaboradores) : state.entregas,
+        fardamentoEntregas:
+          primeiraCarga && state.fardamentoEntregas.length === 0
+            ? seedFardEntregas(action.colaboradores)
+            : state.fardamentoEntregas,
+        fardamentoReparos:
+          primeiraCarga && state.fardamentoReparos.length === 0 ? seedFardReparos(action.colaboradores) : state.fardamentoReparos,
+      };
+    }
+
     case "REGISTRAR_ENTREGA_EPI": {
       const nome = nomeDoColab(state, action.colabId);
       const colab = state.colaboradores.find((c) => c.id === action.colabId);
