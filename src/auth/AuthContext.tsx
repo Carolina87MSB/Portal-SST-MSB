@@ -64,7 +64,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { shouldCreateUser: false },
+      options: {
+        shouldCreateUser: false,
+        // Sem isso, o Supabase usa a "Site URL" configurada no painel (Authentication >
+        // URL Configuration) como destino do link do e-mail — se ela estiver com o valor
+        // padrão (ex.: localhost:3000), o link quebra em qualquer outro ambiente. Ao
+        // enviar a origem de onde o pedido partiu, o link sempre volta para o lugar certo
+        // (localhost em dev, o domínio da Vercel em produção) — desde que essa mesma URL
+        // esteja também na lista de "Redirect URLs" permitidas no painel do Supabase.
+        emailRedirectTo: window.location.origin,
+      },
     });
     if (error) {
       // Supabase retorna "Signups not allowed for otp" (ou similar) quando o e-mail
