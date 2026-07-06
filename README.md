@@ -12,7 +12,7 @@ Pré-requisito: [Node.js](https://nodejs.org) 20+.
 2. **Rode o schema**: abra _SQL Editor_ no painel do projeto, cole o conteúdo de [`supabase/schema.sql`](supabase/schema.sql) e execute. Isso cria a tabela `colaboradores` com RLS (só usuários autenticados leem).
 3. **Crie as contas do RH**: em _Authentication → Users → Add user_, crie uma entrada para cada e-mail autorizado (ex. `carolina.cruz@msbbrasil.com`, `leslie.souza@msbbrasil.com`). Não é preciso senha — o login é por link mágico (magic link) enviado ao e-mail. **Não há autocadastro**: só quem tem conta criada aqui consegue entrar.
 4. **Configure a URL de redirecionamento** do magic link em _Authentication → URL Configuration_: adicione `http://localhost:5173` (dev) e, depois do deploy, a URL da Vercel.
-5. **Copie as chaves**: em _Settings → API_, pegue a `Project URL`, a `anon public` key e a `service_role` key.
+5. **Copie as chaves**: em _Settings → API_, pegue a `Project URL`, a `Publishable key` (antigo nome: "anon public") e a `Secret key` (antigo nome: "service_role").
 6. **Configure o ambiente local**:
    ```bash
    cd portal-sst
@@ -36,7 +36,7 @@ Sem um `.env.local` preenchido, o app sobe normalmente mas mostra a tela de logi
 ## Deploy na Vercel
 
 1. Importe o repositório `Carolina87MSB/Portal-SST-MSB` na Vercel (framework detectado automaticamente: Vite).
-2. Em _Settings → Environment Variables_, adicione `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` (os mesmos valores do `.env.local`; **nunca** adicione `SUPABASE_SERVICE_ROLE_KEY` na Vercel — essa chave é só para rodar `npm run seed:supabase` localmente).
+2. Em _Settings → Environment Variables_, adicione `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY` (os mesmos valores do `.env.local`). **Atenção ao prefixo**: como o projeto é Vite (não Next.js), as variáveis precisam começar com `VITE_` — `NEXT_PUBLIC_...` não é lido pelo app e o build fica com o Supabase "não configurado" mesmo depois do deploy. Nunca adicione `SUPABASE_SERVICE_ROLE_KEY` na Vercel — essa chave é só para rodar `npm run seed:supabase` localmente.
 3. Depois do primeiro deploy, volte em Supabase → _Authentication → URL Configuration_ e adicione a URL da Vercel como redirect permitido do magic link.
 
 ## Acesso
