@@ -87,7 +87,8 @@ A base de colaboradores contém **dados reais**: nome completo, CPF, data de nas
 - `src/data/colaboradores.json` está no `.gitignore` — existe só localmente, em quem gerou a base original.
 - `src/data/colaboradores.example.json` (versionado) mostra o formato esperado com dados fictícios.
 - Em produção, os dados reais moram só no Postgres do Supabase, atrás de RLS (`supabase/schema.sql`): apenas usuários autenticados via Supabase Auth conseguem ler a tabela `colaboradores` — sem login, a API do Supabase não devolve nenhuma linha.
-- `npm run seed:supabase` é o único jeito de popular/atualizar essa tabela; usa a `service_role` key, que **nunca** deve ir para a Vercel nem para o bundle do navegador (só existe no `.env.local`, fora do git).
+- `npm run seed:supabase` é o único jeito de popular a tabela do zero; usa a `service_role` key, que **nunca** deve ir para a Vercel nem para o bundle do navegador (só existe no `.env.local`, fora do git).
+- Para **atualizar** cargo/departamento/nascimento a partir de uma planilha de RH mais nova (ex.: exportações "Colaboradores x Cargos x Departamentos"), use `scripts/gen-cargo-departamento-sql.mjs` (requer `npm install --no-save xlsx`) — ele casa cada linha com a base atual por CPF (ou por nome, se o CPF estiver em branco no cadastro), gera `UPDATE`/`INSERT` em `supabase/local/*.sql` (pasta gitignored, nunca commitada) e lista em comentário quem sumiu da planilha, sem apagar ninguém automaticamente. Revise o SQL gerado antes de rodar no SQL Editor do Supabase.
 - Ao deslogar, `PortalStoreContext` limpa colaboradores da memória e do `localStorage` do navegador.
 
 Próximos incrementos de segurança sugeridos (fora do escopo atual):

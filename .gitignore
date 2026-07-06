@@ -27,3 +27,7 @@ dist-ssr
 # Nunca commitar. Ver src/data/colaboradores.example.json para o formato esperado
 # e README.md > "Dados e privacidade (LGPD)" para o plano de migração para Supabase.
 src/data/colaboradores.json
+
+# SQL gerado sob demanda (scripts/gen-cargo-departamento-sql.mjs) a partir de
+# planilhas com CPF/nome reais — sempre local, nunca commitado.
+supabase/local/
