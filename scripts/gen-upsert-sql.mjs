@@ -87,7 +87,19 @@ for (const r of dataRows) {
   }
 }
 
-const registros = [...merged.values()].sort((a, b) => a.id - b.id);
+// cargo/departamento/origem/nome/cpf são NOT NULL na tabela (ver supabase/schema.sql)
+// — alguns cadastros antigos têm esses campos como null (ex.: Carolaine/Ourivania
+// sem departamento); normaliza para string vazia em vez de deixar virar SQL NULL.
+const registros = [...merged.values()]
+  .map((c) => ({
+    ...c,
+    cpf: c.cpf ?? "",
+    nome: c.nome ?? "",
+    cargo: c.cargo ?? "",
+    departamento: c.departamento ?? "",
+    origem: c.origem ?? "",
+  }))
+  .sort((a, b) => a.id - b.id);
 
 const lines = [];
 lines.push(`-- Upsert completo gerado a partir de '${basename(inputPath)}' + src/data/colaboradores.json.`);
