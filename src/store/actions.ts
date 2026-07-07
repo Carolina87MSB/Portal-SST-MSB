@@ -15,6 +15,20 @@ export type PortalAction =
       obs: string;
       by: string;
     }
+  | {
+      type: "EDITAR_ENTREGA_EPI";
+      entregaId: string;
+      epi: string;
+      qtd: number;
+      ca: string;
+      fornecedor: string;
+      valorUnit: number;
+      dataEntrega: string;
+      dataTroca: string;
+      obs: string;
+      by: string;
+    }
+  | { type: "EXCLUIR_ENTREGA_EPI"; entregaId: string; by: string }
   | { type: "EDITAR_PRECO_EPI"; equip: string; valor: number; fornecedor: string; dataCotacao: string; by: string }
   | { type: "EDITAR_PRECO_EXAME"; codigo: string; valor: number; fornecedor: string; dataCotacao: string; by: string }
   | {

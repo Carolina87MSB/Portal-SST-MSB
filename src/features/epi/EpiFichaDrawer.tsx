@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { CircleCheck, PackagePlus, TriangleAlert } from "lucide-react";
+import { CircleCheck, Pencil, PackagePlus, Trash2, TriangleAlert } from "lucide-react";
 import { Avatar, Button, Drawer } from "../../components/ui";
 import { useAuth } from "../../auth/AuthContext";
 import { usePortalStore } from "../../store/PortalStoreContext";
@@ -10,7 +10,9 @@ import { matrizEpiParaColaborador } from "../../domain/matriz";
 import { divergenciaEpiPara } from "./lib/epiUtils";
 import { RegistrarEntregaEpiModal } from "./RegistrarEntregaEpiModal";
 import type { RegistrarEntregaEpiPayload } from "./RegistrarEntregaEpiModal";
+import { ExcluirEntregaEpiModal } from "./ExcluirEntregaEpiModal";
 import { EntregaAssinaturaControls } from "./EntregaAssinaturaControls";
+import type { EntregaEpi } from "../../types/domain";
 import styles from "./EpiFichaDrawer.module.css";
 
 interface EpiFichaDrawerProps {
@@ -22,6 +24,8 @@ export function EpiFichaDrawer({ colabId, onClose }: EpiFichaDrawerProps) {
   const { user, canEdit } = useAuth();
   const { state, dispatch } = usePortalStore();
   const [showEntregaModal, setShowEntregaModal] = useState(false);
+  const [entregaEmEdicao, setEntregaEmEdicao] = useState<EntregaEpi | null>(null);
+  const [entregaParaExcluir, setEntregaParaExcluir] = useState<EntregaEpi | null>(null);
 
   const colaborador = state.colaboradores.find((c) => c.id === colabId);
   const matrizEpi = useMemo(() => portalRepository.getMatrizEpi(), []);
@@ -63,6 +67,28 @@ export function EpiFichaDrawer({ colabId, onClose }: EpiFichaDrawerProps) {
       obs: payload.obs,
       by: user.email,
     });
+  }
+
+  function handleEditarEntrega(entregaId: string, payload: RegistrarEntregaEpiPayload) {
+    if (!user) return;
+    dispatch({
+      type: "EDITAR_ENTREGA_EPI",
+      entregaId,
+      epi: payload.epi,
+      qtd: payload.qtd,
+      ca: payload.ca,
+      fornecedor: payload.fornecedor,
+      valorUnit: payload.valorUnit,
+      dataEntrega: payload.dataEntrega,
+      dataTroca: payload.dataTroca,
+      obs: payload.obs,
+      by: user.email,
+    });
+  }
+
+  function handleExcluirEntrega(entregaId: string) {
+    if (!user) return;
+    dispatch({ type: "EXCLUIR_ENTREGA_EPI", entregaId, by: user.email });
   }
 
   function handleFichaGerada(entregaId: string) {
@@ -138,7 +164,29 @@ export function EpiFichaDrawer({ colabId, onClose }: EpiFichaDrawerProps) {
             <div key={e.id} className={styles.entregaCard}>
               <div className={styles.entregaHeader}>
                 <strong>{e.epi}</strong>
-                <span className="mono">{e.dataEntrega}</span>
+                <div className={styles.entregaHeaderRight}>
+                  <span className="mono">{e.dataEntrega}</span>
+                  {canEdit ? (
+                    <>
+                      <button
+                        type="button"
+                        className={styles.entregaIconButton}
+                        title="Editar entrega"
+                        onClick={() => setEntregaEmEdicao(e)}
+                      >
+                        <Pencil size={13} />
+                      </button>
+                      <button
+                        type="button"
+                        className={`${styles.entregaIconButton} ${styles.entregaIconButtonDanger}`}
+                        title="Excluir entrega"
+                        onClick={() => setEntregaParaExcluir(e)}
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </>
+                  ) : null}
+                </div>
               </div>
               <div className={styles.entregaMeta}>
                 CA {e.ca || "—"} · Qtd {e.qtd} · {e.fornecedor || "Fornecedor não informado"}
@@ -170,6 +218,26 @@ export function EpiFichaDrawer({ colabId, onClose }: EpiFichaDrawerProps) {
           epiCatalogo={epiCatalogo}
           onClose={() => setShowEntregaModal(false)}
           onSave={handleRegistrarEntrega}
+        />
+      ) : null}
+
+      {entregaEmEdicao ? (
+        <RegistrarEntregaEpiModal
+          colaboradorNome={titleCase(colaborador.nome)}
+          epiOptions={mandatorios}
+          epiPrecos={state.epiPrecos}
+          epiCatalogo={epiCatalogo}
+          entregaParaEditar={entregaEmEdicao}
+          onClose={() => setEntregaEmEdicao(null)}
+          onSave={(payload) => handleEditarEntrega(entregaEmEdicao.id, payload)}
+        />
+      ) : null}
+
+      {entregaParaExcluir ? (
+        <ExcluirEntregaEpiModal
+          entrega={entregaParaExcluir}
+          onClose={() => setEntregaParaExcluir(null)}
+          onConfirm={() => handleExcluirEntrega(entregaParaExcluir.id)}
         />
       ) : null}
     </Drawer>

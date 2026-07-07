@@ -25,6 +25,14 @@ export function isoToBR(iso: string | null | undefined): string {
   return `${parts[2]}/${parts[1]}/${parts[0]}`;
 }
 
+/** Inverso de isoToBR — usado para pré-preencher <input type="date"> a partir de um valor dd/mm/aaaa salvo. */
+export function brToIso(value: string | null | undefined): string {
+  if (!value || value === "—") return "";
+  const parts = value.split("/");
+  if (parts.length < 3) return "";
+  return `${parts[2]}-${parts[1]}-${parts[0]}`;
+}
+
 export function mesISOfromBR(value: string | null | undefined): string {
   const d = parseBR(value);
   if (!d) return "";

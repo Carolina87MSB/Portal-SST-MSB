@@ -2,8 +2,8 @@ import { useMemo, useState } from "react";
 import { Modal } from "../../components/ui/Modal";
 import { Button } from "../../components/ui/Button";
 import { LabeledField, Select, TextInput } from "../../components/ui/Field";
-import { isoToBR } from "../../domain/dates";
-import type { EpiCatalogoItem, PrecoInfo } from "../../types/domain";
+import { brToIso, isoToBR } from "../../domain/dates";
+import type { EntregaEpi, EpiCatalogoItem, PrecoInfo } from "../../types/domain";
 
 const OUTRO_VALUE = "__outro__";
 
@@ -23,28 +23,36 @@ interface RegistrarEntregaEpiModalProps {
   epiOptions: string[];
   epiPrecos: Record<string, PrecoInfo>;
   epiCatalogo: EpiCatalogoItem[];
+  /** Quando informado, o modal abre em modo de edição, pré-preenchido com os dados desta entrega. */
+  entregaParaEditar?: EntregaEpi;
   onClose: () => void;
   onSave: (payload: RegistrarEntregaEpiPayload) => void;
 }
 
-/** Modal de registro de entrega de EPI a partir da ficha do colaborador. */
+/** Modal de registro (ou edição) de entrega de EPI a partir da ficha do colaborador. */
 export function RegistrarEntregaEpiModal({
   colaboradorNome,
   epiOptions,
   epiPrecos,
   epiCatalogo,
+  entregaParaEditar,
   onClose,
   onSave,
 }: RegistrarEntregaEpiModalProps) {
-  const [epiSelecionado, setEpiSelecionado] = useState(epiOptions[0] ?? OUTRO_VALUE);
-  const [epiCustom, setEpiCustom] = useState("");
-  const [qtd, setQtd] = useState("1");
-  const [ca, setCa] = useState("");
-  const [fornecedor, setFornecedor] = useState("");
-  const [valorUnit, setValorUnit] = useState("");
-  const [dataEntregaIso, setDataEntregaIso] = useState("");
-  const [dataTrocaIso, setDataTrocaIso] = useState("");
-  const [obs, setObs] = useState("");
+  const editando = !!entregaParaEditar;
+  const epiJaListado = !!entregaParaEditar && epiOptions.includes(entregaParaEditar.epi);
+
+  const [epiSelecionado, setEpiSelecionado] = useState(
+    entregaParaEditar ? (epiJaListado ? entregaParaEditar.epi : OUTRO_VALUE) : epiOptions[0] ?? OUTRO_VALUE,
+  );
+  const [epiCustom, setEpiCustom] = useState(entregaParaEditar && !epiJaListado ? entregaParaEditar.epi : "");
+  const [qtd, setQtd] = useState(entregaParaEditar ? String(entregaParaEditar.qtd) : "1");
+  const [ca, setCa] = useState(entregaParaEditar?.ca ?? "");
+  const [fornecedor, setFornecedor] = useState(entregaParaEditar?.fornecedor ?? "");
+  const [valorUnit, setValorUnit] = useState(entregaParaEditar ? String(entregaParaEditar.valorUnit || "") : "");
+  const [dataEntregaIso, setDataEntregaIso] = useState(entregaParaEditar ? brToIso(entregaParaEditar.dataEntrega) : "");
+  const [dataTrocaIso, setDataTrocaIso] = useState(entregaParaEditar ? brToIso(entregaParaEditar.dataTroca) : "");
+  const [obs, setObs] = useState(entregaParaEditar?.obs ?? "");
 
   const epiFinal = epiSelecionado === OUTRO_VALUE ? epiCustom.trim() : epiSelecionado;
 
@@ -84,7 +92,7 @@ export function RegistrarEntregaEpiModal({
 
   return (
     <Modal
-      title="Registrar entrega de EPI"
+      title={editando ? "Editar entrega de EPI" : "Registrar entrega de EPI"}
       subtitle={colaboradorNome}
       onClose={onClose}
       footer={
@@ -93,7 +101,7 @@ export function RegistrarEntregaEpiModal({
             Cancelar
           </Button>
           <Button disabled={!canSubmit} onClick={handleSubmit}>
-            Registrar entrega
+            {editando ? "Salvar alterações" : "Registrar entrega"}
           </Button>
         </>
       }

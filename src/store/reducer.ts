@@ -51,6 +51,60 @@ export function portalReducer(state: PortalState, action: PortalAction): PortalS
       };
     }
 
+    case "EDITAR_ENTREGA_EPI": {
+      const entrega = state.entregas.find((e) => e.id === action.entregaId);
+      if (!entrega) return state;
+      return {
+        ...state,
+        entregas: state.entregas.map((e) =>
+          e.id === action.entregaId
+            ? {
+                ...e,
+                epi: action.epi,
+                qtd: action.qtd,
+                ca: action.ca,
+                fornecedor: action.fornecedor,
+                valorUnit: action.valorUnit,
+                dataEntrega: action.dataEntrega,
+                dataTroca: action.dataTroca,
+                obs: action.obs,
+              }
+            : e,
+        ),
+        log: [
+          {
+            action: "Entrega de EPI editada",
+            colabId: entrega.colabId,
+            colabNome: nomeDoColab(state, entrega.colabId),
+            detail: action.epi,
+            user: action.by,
+            ts: stamp(),
+          },
+          ...state.log,
+        ],
+      };
+    }
+
+    case "EXCLUIR_ENTREGA_EPI": {
+      const entrega = state.entregas.find((e) => e.id === action.entregaId);
+      if (!entrega) return state;
+      return {
+        ...state,
+        entregas: state.entregas.filter((e) => e.id !== action.entregaId),
+        log: [
+          {
+            action: "Entrega de EPI excluída",
+            colabId: entrega.colabId,
+            colabNome: nomeDoColab(state, entrega.colabId),
+            detail: entrega.epi,
+            user: action.by,
+            ts: stamp(),
+          },
+          ...state.log,
+        ],
+      };
+    }
+
     case "EDITAR_PRECO_EPI": {
       return {
         ...state,
