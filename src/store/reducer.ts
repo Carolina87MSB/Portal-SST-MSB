@@ -222,6 +222,45 @@ export function portalReducer(state: PortalState, action: PortalAction): PortalS
       };
     }
 
+    case "MARCAR_FICHA_EPI_GERADA": {
+      return {
+        ...state,
+        entregas: state.entregas.map((e) => (e.id === action.entregaId ? { ...e, fichaGeradaEm: e.fichaGeradaEm ?? stamp() } : e)),
+      };
+    }
+
+    case "ANEXAR_FICHA_EPI_ASSINADA": {
+      const entrega = state.entregas.find((e) => e.id === action.entregaId);
+      return {
+        ...state,
+        entregas: state.entregas.map((e) =>
+          e.id === action.entregaId
+            ? {
+                ...e,
+                assinaturaFileName: action.fileName,
+                assinaturaDataUrl: action.fileDataUrl,
+                assinaturaMime: action.mime,
+                assinaturaAnexadaEm: stamp(),
+                assinaturaResponsavel: action.by,
+              }
+            : e,
+        ),
+        log: entrega
+          ? [
+              {
+                action: "Ficha de EPI assinada anexada",
+                colabId: entrega.colabId,
+                colabNome: nomeDoColab(state, entrega.colabId),
+                detail: entrega.epi,
+                user: action.by,
+                ts: stamp(),
+              },
+              ...state.log,
+            ]
+          : state.log,
+      };
+    }
+
     case "RESET":
       return buildInitialState();
 

@@ -10,6 +10,7 @@ import { matrizEpiParaColaborador } from "../../domain/matriz";
 import { divergenciaEpiPara } from "./lib/epiUtils";
 import { RegistrarEntregaEpiModal } from "./RegistrarEntregaEpiModal";
 import type { RegistrarEntregaEpiPayload } from "./RegistrarEntregaEpiModal";
+import { EntregaAssinaturaControls } from "./EntregaAssinaturaControls";
 import styles from "./EpiFichaDrawer.module.css";
 
 interface EpiFichaDrawerProps {
@@ -62,6 +63,15 @@ export function EpiFichaDrawer({ colabId, onClose }: EpiFichaDrawerProps) {
       obs: payload.obs,
       by: user.email,
     });
+  }
+
+  function handleFichaGerada(entregaId: string) {
+    dispatch({ type: "MARCAR_FICHA_EPI_GERADA", entregaId });
+  }
+
+  function handleAnexarAssinatura(entregaId: string, fileName: string, fileDataUrl: string, mime: string) {
+    if (!user) return;
+    dispatch({ type: "ANEXAR_FICHA_EPI_ASSINADA", entregaId, fileName, fileDataUrl, mime, by: user.email });
   }
 
   return (
@@ -138,6 +148,15 @@ export function EpiFichaDrawer({ colabId, onClose }: EpiFichaDrawerProps) {
               </div>
               {e.obs ? <div className={styles.entregaObs}>{e.obs}</div> : null}
               <div className={styles.entregaResp}>Registrado por {e.responsavel}</div>
+              <div className={styles.entregaFicha}>
+                <EntregaAssinaturaControls
+                  entrega={e}
+                  colaborador={colaborador}
+                  canEdit={canEdit}
+                  onFichaGerada={() => handleFichaGerada(e.id)}
+                  onAnexarAssinatura={(fileName, fileDataUrl, mime) => handleAnexarAssinatura(e.id, fileName, fileDataUrl, mime)}
+                />
+              </div>
             </div>
           ))}
         </div>

@@ -1,10 +1,12 @@
 import { useMemo, useState } from "react";
 import { Card, EmptyState, SearchInput, Select, Table, Td, Th, THead, TextInput, Tr } from "../../../components/ui";
+import { useAuth } from "../../../auth/AuthContext";
 import { usePortalStore } from "../../../store/PortalStoreContext";
 import { portalRepository } from "../../../repositories/portalRepository";
 import { deptName, fmtMoney, titleCase } from "../../../domain/text";
 import { parseBR } from "../../../domain/dates";
 import { matchesColaboradorSearch } from "../lib/epiUtils";
+import { EntregaAssinaturaControls } from "../EntregaAssinaturaControls";
 import type { Colaborador, EntregaEpi } from "../../../types/domain";
 import shared from "../EpiShared.module.css";
 import styles from "./HistoricoTab.module.css";
@@ -33,7 +35,8 @@ function dentroDoPeriodo(dataBR: string, de: string, ate: string): boolean {
 }
 
 export function HistoricoTab() {
-  const { state } = usePortalStore();
+  const { user, canEdit } = useAuth();
+  const { state, dispatch } = usePortalStore();
   const [filtros, setFiltros] = useState<Filtros>(FILTROS_INICIAIS);
 
   const colabPorId = useMemo(() => {
@@ -159,10 +162,21 @@ export function HistoricoTab() {
               <Th>V. total</Th>
               <Th>Troca</Th>
               <Th>Responsável</Th>
+              <Th>Ficha de entrega</Th>
             </THead>
             <tbody>
               {linhas.map(({ entrega, colab }) => (
-                <EntregaRow key={entrega.id} entrega={entrega} colab={colab} />
+                <EntregaRow
+                  key={entrega.id}
+                  entrega={entrega}
+                  colab={colab}
+                  canEdit={canEdit}
+                  onFichaGerada={() => dispatch({ type: "MARCAR_FICHA_EPI_GERADA", entregaId: entrega.id })}
+                  onAnexarAssinatura={(fileName, fileDataUrl, mime) => {
+                    if (!user) return;
+                    dispatch({ type: "ANEXAR_FICHA_EPI_ASSINADA", entregaId: entrega.id, fileName, fileDataUrl, mime, by: user.email });
+                  }}
+                />
               ))}
             </tbody>
           </Table>
@@ -172,7 +186,15 @@ export function HistoricoTab() {
   );
 }
 
-function EntregaRow({ entrega, colab }: { entrega: EntregaEpi; colab: Colaborador | undefined }) {
+interface EntregaRowProps {
+  entrega: EntregaEpi;
+  colab: Colaborador | undefined;
+  canEdit: boolean;
+  onFichaGerada: () => void;
+  onAnexarAssinatura: (fileName: string, fileDataUrl: string, mime: string) => void;
+}
+
+function EntregaRow({ entrega, colab, canEdit, onFichaGerada, onAnexarAssinatura }: EntregaRowProps) {
   return (
     <Tr>
       <Td mono>{entrega.dataEntrega}</Td>
@@ -194,6 +216,15 @@ function EntregaRow({ entrega, colab }: { entrega: EntregaEpi; colab: Colaborado
       </Td>
       <Td mono>{entrega.dataTroca || "—"}</Td>
       <Td>{entrega.responsavel}</Td>
+      <Td>
+        <EntregaAssinaturaControls
+          entrega={entrega}
+          colaborador={colab}
+          canEdit={canEdit}
+          onFichaGerada={onFichaGerada}
+          onAnexarAssinatura={onAnexarAssinatura}
+        />
+      </Td>
     </Tr>
   );
 }

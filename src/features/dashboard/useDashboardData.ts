@@ -5,6 +5,7 @@ import { deptName, fmtMoney, titleCase } from "../../domain/text";
 import { mesAbrev, mesISOfromBR } from "../../domain/dates";
 import { statusDoRegistro, toneForStatus } from "../../domain/exameStatus";
 import type { BadgeTone } from "../../domain/exameStatus";
+import { statusAssinaturaFor } from "../../domain/fichaAssinatura";
 import type { Colaborador, ExameRegistro } from "../../types/domain";
 
 interface ExameFlat {
@@ -214,6 +215,12 @@ export function useDashboardData() {
     const examesRealizadosCount = state.attachments.length;
     const difExamesSST = realizadoExamesTotal - previstoExamesAno;
 
+    // ---------- fichas de entrega de EPI pendentes de assinatura ----------
+    const totalFichasEpi = state.entregas.length;
+    const fichasAssinadas = state.entregas.filter((e) => statusAssinaturaFor(e) === "assinada").length;
+    const fichasAguardando = state.entregas.filter((e) => statusAssinaturaFor(e) === "aguardando").length;
+    const fichasPendentes = totalFichasEpi - fichasAssinadas - fichasAguardando;
+
     return {
       kpi,
       pctEmDia,
@@ -249,6 +256,12 @@ export function useDashboardData() {
         difLabel: `${difExamesSST >= 0 ? "+" : "−"} ${fmtMoney(Math.abs(difExamesSST))}`,
         difPositivo: difExamesSST > 0,
         hasPrevisto: previstoExamesAno > 0,
+      },
+      fichasEpi: {
+        total: totalFichasEpi,
+        assinadas: fichasAssinadas,
+        aguardando: fichasAguardando,
+        pendentes: fichasPendentes,
       },
     };
   }, [state]);

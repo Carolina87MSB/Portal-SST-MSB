@@ -139,3 +139,9 @@
   color: var(--color-muted-light);
   margin-top: 6px;
 }
+
+.entregaFicha {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--color-border);
+}

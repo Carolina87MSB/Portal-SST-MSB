@@ -1,13 +1,15 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { CalendarClock, ClipboardCheck, ShieldCheck, TriangleAlert, Users } from "lucide-react";
+import { CalendarClock, ClipboardCheck, FileSignature, ShieldCheck, TriangleAlert, Users } from "lucide-react";
 import { Card, DonutChart, GroupedBarChart, KpiCard, SegmentedControl, StatusBadge, Table, Td, Th, THead, Tr } from "../../components/ui";
+import { useAuth } from "../../auth/AuthContext";
 import { useDashboardData } from "./useDashboardData";
 import styles from "./DashboardPage.module.css";
 
 type CustoView = "mes" | "dept" | "colab";
 
 export function DashboardPage() {
+  const { canEdit } = useAuth();
   const data = useDashboardData();
   const [custoEpiView, setCustoEpiView] = useState<CustoView>("mes");
   const [custoFardView, setCustoFardView] = useState<CustoView>("mes");
@@ -44,6 +46,24 @@ export function DashboardPage() {
           </div>
         </div>
       </Card>
+
+      {/* fichas de EPI pendentes de assinatura — controle interno do RH */}
+      {canEdit ? (
+        <Card className={styles.sectionCard}>
+          <div className={styles.sectionHeader}>
+            <div>
+              <div className={styles.sectionTitle}>Fichas de EPI pendentes de assinatura</div>
+              <div className={styles.sectionSubtitle}>Controle do RH — acompanhamento das fichas de entrega geradas e assinadas.</div>
+            </div>
+          </div>
+          <div className={styles.kpiGrid}>
+            <KpiCard icon={<Users size={18} />} value={data.fichasEpi.total} label="Entregas realizadas" />
+            <KpiCard icon={<FileSignature size={18} />} value={data.fichasEpi.assinadas} label="Fichas assinadas" tone="success" />
+            <KpiCard icon={<CalendarClock size={18} />} value={data.fichasEpi.aguardando} label="Aguardando assinatura" tone="warning" />
+            <KpiCard icon={<TriangleAlert size={18} />} value={data.fichasEpi.pendentes} label="Ficha não gerada" tone="danger" />
+          </div>
+        </Card>
+      ) : null}
 
       {/* pendências */}
       <Card className={styles.sectionCard}>

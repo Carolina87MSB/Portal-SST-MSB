@@ -127,6 +127,14 @@ export interface EntregaEpi {
   responsavel: string;
   assinatura: string;
   ts: string;
+  /** Data/hora em que a Ficha de Entrega (PDF) foi gerada pela primeira vez para esta entrega. */
+  fichaGeradaEm?: string;
+  /** Documento da ficha assinada, anexado pelo RH após a assinatura do colaborador (PDF/JPG/PNG). */
+  assinaturaFileName?: string;
+  assinaturaMime?: string;
+  assinaturaDataUrl?: string;
+  assinaturaAnexadaEm?: string;
+  assinaturaResponsavel?: string;
 }
 
 export interface AttachmentExame {
