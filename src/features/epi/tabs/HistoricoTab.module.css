@@ -48,3 +48,10 @@
   color: var(--color-muted);
   font-size: 11.5px;
 }
+
+.semFicha {
+  font-size: 11px;
+  color: var(--color-muted-light);
+  font-style: italic;
+  white-space: nowrap;
+}

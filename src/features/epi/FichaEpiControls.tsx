@@ -2,35 +2,27 @@ import { useRef } from "react";
 import type { ChangeEvent } from "react";
 import { FileDown, FileText, Upload } from "lucide-react";
 import { StatusBadge } from "../../components/ui";
-import type { Colaborador, EntregaEpi } from "../../types/domain";
+import type { Colaborador, EntregaEpi, FichaEntregaEpi } from "../../types/domain";
 import { baixarFichaEntregaEpiPdf } from "../../domain/pdf/fichaEntregaEpi";
-import { labelStatusAssinatura, statusAssinaturaFor, toneStatusAssinatura } from "../../domain/fichaAssinatura";
-import styles from "./EntregaAssinaturaControls.module.css";
+import { labelStatusFichaEpi, statusFichaEpi, toneStatusFichaEpi } from "../../domain/fichaAssinatura";
+import styles from "./FichaEpiControls.module.css";
 
-interface EntregaAssinaturaControlsProps {
-  entrega: EntregaEpi;
+interface FichaEpiControlsProps {
+  ficha: FichaEntregaEpi;
+  entregas: EntregaEpi[];
   colaborador: Colaborador | undefined;
   canEdit: boolean;
-  onFichaGerada: () => void;
   onAnexarAssinatura: (fileName: string, fileDataUrl: string, mime: string) => void;
 }
 
-/** Controles de ficha de entrega (gerar PDF / anexar via assinada) — usado na ficha do
- * colaborador e no Histórico de entregas, sempre com a mesma lógica e o mesmo status. */
-export function EntregaAssinaturaControls({
-  entrega,
-  colaborador,
-  canEdit,
-  onFichaGerada,
-  onAnexarAssinatura,
-}: EntregaAssinaturaControlsProps) {
+/** Controles de uma ficha de entrega já gerada — reabrir o PDF, anexar/ver a via assinada. */
+export function FichaEpiControls({ ficha, entregas, colaborador, canEdit, onAnexarAssinatura }: FichaEpiControlsProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const status = statusAssinaturaFor(entrega);
+  const status = statusFichaEpi(ficha);
 
-  function handleGerarPdf() {
+  function handleVerPdf() {
     if (!colaborador) return;
-    baixarFichaEntregaEpiPdf(entrega, colaborador);
-    onFichaGerada();
+    baixarFichaEntregaEpiPdf(entregas, colaborador, { id: ficha.id, geradaEm: ficha.geradaEm, geradaPor: ficha.geradaPor });
   }
 
   function handleFileSelected(e: ChangeEvent<HTMLInputElement>) {
@@ -46,17 +38,11 @@ export function EntregaAssinaturaControls({
 
   return (
     <div className={styles.wrap}>
-      <StatusBadge label={labelStatusAssinatura(status)} tone={toneStatusAssinatura(status)} />
-      <button
-        type="button"
-        className={styles.actionButton}
-        title="Gerar ficha de entrega em PDF"
-        onClick={handleGerarPdf}
-        disabled={!colaborador}
-      >
-        <FileDown size={12} /> Gerar ficha (PDF)
+      <StatusBadge label={labelStatusFichaEpi(status)} tone={toneStatusFichaEpi(status)} />
+      <button type="button" className={styles.actionButton} title="Gerar novamente o PDF desta ficha" onClick={handleVerPdf} disabled={!colaborador}>
+        <FileDown size={12} /> Ver ficha (PDF)
       </button>
-      {canEdit ? (
+      {canEdit && status === "aguardando" ? (
         <>
           <button type="button" className={styles.actionButton} title="Anexar ficha assinada" onClick={() => fileInputRef.current?.click()}>
             <Upload size={12} /> Anexar ficha assinada
@@ -70,14 +56,14 @@ export function EntregaAssinaturaControls({
           />
         </>
       ) : null}
-      {entrega.assinaturaDataUrl ? (
+      {ficha.assinaturaDataUrl ? (
         <a
-          href={entrega.assinaturaDataUrl}
-          download={entrega.assinaturaFileName || undefined}
+          href={ficha.assinaturaDataUrl}
+          download={ficha.assinaturaFileName || undefined}
           target="_blank"
           rel="noreferrer"
           className={styles.viewLink}
-          title={`Ver ${entrega.assinaturaFileName || "ficha assinada"}`}
+          title={`Ver ${ficha.assinaturaFileName || "ficha assinada"}`}
         >
           <FileText size={12} /> Ver ficha assinada
         </a>

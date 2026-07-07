@@ -42,6 +42,7 @@ export function buildInitialState(): PortalState {
     version: 1,
     colaboradores,
     entregas: [],
+    fichasEpi: [],
     attachments: [],
     desligados: {},
     epiPrecos,

@@ -53,7 +53,9 @@ export function portalReducer(state: PortalState, action: PortalAction): PortalS
 
     case "EDITAR_ENTREGA_EPI": {
       const entrega = state.entregas.find((e) => e.id === action.entregaId);
-      if (!entrega) return state;
+      // Uma vez incluída numa ficha gerada, a entrega fica congelada — corrigir
+      // exigiria reemitir a ficha e invalidar uma possível via já assinada.
+      if (!entrega || entrega.fichaId) return state;
       return {
         ...state,
         entregas: state.entregas.map((e) =>
@@ -87,7 +89,7 @@ export function portalReducer(state: PortalState, action: PortalAction): PortalS
 
     case "EXCLUIR_ENTREGA_EPI": {
       const entrega = state.entregas.find((e) => e.id === action.entregaId);
-      if (!entrega) return state;
+      if (!entrega || entrega.fichaId) return state;
       return {
         ...state,
         entregas: state.entregas.filter((e) => e.id !== action.entregaId),
@@ -276,42 +278,70 @@ export function portalReducer(state: PortalState, action: PortalAction): PortalS
       };
     }
 
-    case "MARCAR_FICHA_EPI_GERADA": {
+    case "GERAR_FICHA_EPI": {
+      // Agrupa todas as entregas do "lote aberto" (ainda sem fichaId) informadas
+      // pela UI numa única ficha nova. Entregas registradas depois formam o
+      // próximo lote, que virará outra ficha na próxima geração.
+      const idsValidos = new Set(
+        action.entregaIds.filter((id) => {
+          const e = state.entregas.find((x) => x.id === id);
+          return e && e.colabId === action.colabId && !e.fichaId;
+        }),
+      );
+      if (idsValidos.size === 0) return state;
+      const ficha = {
+        id: action.fichaId,
+        colabId: action.colabId,
+        entregaIds: [...idsValidos],
+        geradaEm: stamp(),
+        geradaPor: action.by,
+      };
       return {
         ...state,
-        entregas: state.entregas.map((e) => (e.id === action.entregaId ? { ...e, fichaGeradaEm: e.fichaGeradaEm ?? stamp() } : e)),
+        entregas: state.entregas.map((e) => (idsValidos.has(e.id) ? { ...e, fichaId: ficha.id } : e)),
+        fichasEpi: [ficha, ...state.fichasEpi],
+        log: [
+          {
+            action: "Ficha de entrega de EPI gerada",
+            colabId: action.colabId,
+            colabNome: nomeDoColab(state, action.colabId),
+            detail: `${idsValidos.size} item(ns)`,
+            user: action.by,
+            ts: stamp(),
+          },
+          ...state.log,
+        ],
       };
     }
 
     case "ANEXAR_FICHA_EPI_ASSINADA": {
-      const entrega = state.entregas.find((e) => e.id === action.entregaId);
+      const ficha = state.fichasEpi.find((f) => f.id === action.fichaId);
+      if (!ficha) return state;
       return {
         ...state,
-        entregas: state.entregas.map((e) =>
-          e.id === action.entregaId
+        fichasEpi: state.fichasEpi.map((f) =>
+          f.id === action.fichaId
             ? {
-                ...e,
+                ...f,
                 assinaturaFileName: action.fileName,
                 assinaturaDataUrl: action.fileDataUrl,
                 assinaturaMime: action.mime,
                 assinaturaAnexadaEm: stamp(),
                 assinaturaResponsavel: action.by,
               }
-            : e,
+            : f,
         ),
-        log: entrega
-          ? [
-              {
-                action: "Ficha de EPI assinada anexada",
-                colabId: entrega.colabId,
-                colabNome: nomeDoColab(state, entrega.colabId),
-                detail: entrega.epi,
-                user: action.by,
-                ts: stamp(),
-              },
-              ...state.log,
-            ]
-          : state.log,
+        log: [
+          {
+            action: "Ficha de EPI assinada anexada",
+            colabId: ficha.colabId,
+            colabNome: nomeDoColab(state, ficha.colabId),
+            detail: `${ficha.entregaIds.length} item(ns)`,
+            user: action.by,
+            ts: stamp(),
+          },
+          ...state.log,
+        ],
       };
     }
 

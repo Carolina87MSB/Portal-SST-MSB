@@ -6,6 +6,7 @@ import type {
   EntregaEpi,
   FardamentoEntrega,
   FardamentoReparo,
+  FichaEntregaEpi,
   LogEntry,
   PrecoInfo,
 } from "../types/domain";
@@ -34,6 +35,7 @@ export interface PortalState {
   version: 1;
   colaboradores: Colaborador[];
   entregas: EntregaEpi[];
+  fichasEpi: FichaEntregaEpi[];
   attachments: AttachmentExame[];
   desligados: Record<number, Desligamento>;
   epiPrecos: Record<string, PrecoInfo>;

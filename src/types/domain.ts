@@ -127,8 +127,27 @@ export interface EntregaEpi {
   responsavel: string;
   assinatura: string;
   ts: string;
-  /** Data/hora em que a Ficha de Entrega (PDF) foi gerada pela primeira vez para esta entrega. */
-  fichaGeradaEm?: string;
+  /**
+   * Ficha de entrega (FichaEntregaEpi) à qual esta entrega foi agrupada, quando o RH
+   * gerou o PDF. Enquanto vazio, a entrega está no "lote aberto" do colaborador —
+   * editável/excluível e ainda não impressa. Uma vez atribuída a uma ficha, a entrega
+   * fica congelada (mesma lógica de "nunca substituir documento anterior").
+   */
+  fichaId?: string;
+}
+
+/**
+ * Ficha de Entrega de EPI (PDF) — agrupa uma ou mais EntregaEpi geradas na mesma
+ * solicitação. Novas entregas registradas depois da geração formam um novo lote,
+ * que vira uma nova ficha na próxima vez que o RH gerar o PDF.
+ */
+export interface FichaEntregaEpi {
+  id: string;
+  colabId: number;
+  /** ids das EntregaEpi incluídas nesta ficha, na ordem em que aparecem no PDF. */
+  entregaIds: string[];
+  geradaEm: string;
+  geradaPor: string;
   /** Documento da ficha assinada, anexado pelo RH após a assinatura do colaborador (PDF/JPG/PNG). */
   assinaturaFileName?: string;
   assinaturaMime?: string;

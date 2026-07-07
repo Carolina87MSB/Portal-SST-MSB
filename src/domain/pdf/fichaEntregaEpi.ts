@@ -12,18 +12,24 @@ interface JsPdfWithAutoTable extends jsPDF {
   lastAutoTable?: { finalY: number };
 }
 
+export interface FichaEntregaEpiInfo {
+  id: string;
+  geradaEm: string;
+  geradaPor: string;
+}
+
 /** Nome de arquivo sugerido para a ficha, sem acentos/espaços. */
-export function nomeArquivoFichaEntregaEpi(entrega: EntregaEpi, colaborador: Colaborador): string {
+export function nomeArquivoFichaEntregaEpi(ficha: FichaEntregaEpiInfo, colaborador: Colaborador): string {
   const nome = titleCase(colaborador.nome)
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
     .replace(/\s+/g, "-");
-  const data = entrega.dataEntrega.replace(/\//g, "-");
+  const data = ficha.geradaEm.split(" ")[0]?.replace(/\//g, "-") ?? "data";
   return `ficha-entrega-epi_${nome}_${data}.pdf`;
 }
 
-/** Gera (em memória) a Ficha de Entrega de EPI em PDF para uma entrega específica. */
-export function gerarFichaEntregaEpiPdf(entrega: EntregaEpi, colaborador: Colaborador): jsPDF {
+/** Gera (em memória) a Ficha de Entrega de EPI em PDF, com uma linha por EPI do lote. */
+export function gerarFichaEntregaEpiPdf(entregas: EntregaEpi[], colaborador: Colaborador, ficha: FichaEntregaEpiInfo): jsPDF {
   const doc = new jsPDF({ unit: "pt", format: "a4" }) as JsPdfWithAutoTable;
   const marginLeft = 48;
   const marginRight = 547;
@@ -73,8 +79,9 @@ export function gerarFichaEntregaEpiPdf(entrega: EntregaEpi, colaborador: Colabo
   bloco(
     "DADOS DA ENTREGA",
     [
-      ["Data da entrega", entrega.dataEntrega],
-      ["Responsável pela entrega", entrega.responsavel],
+      ["Ficha nº", ficha.id.slice(-8).toUpperCase()],
+      ["Gerada em", ficha.geradaEm],
+      ["Responsável pelo registro", ficha.geradaPor],
     ],
     150,
   );
@@ -89,17 +96,16 @@ export function gerarFichaEntregaEpiPdf(entrega: EntregaEpi, colaborador: Colabo
   autoTable(doc, {
     startY: y,
     margin: { left: marginLeft, right: 595 - marginRight },
-    head: [["EPI", "Qtd", "CA", "Vencimento/troca", "Valor unit.", "Fornecedor"]],
-    body: [
-      [
-        entrega.epi,
-        String(entrega.qtd),
-        entrega.ca || "—",
-        entrega.dataTroca || "—",
-        entrega.valorUnit ? fmtMoney(entrega.valorUnit) : "—",
-        entrega.fornecedor || "—",
-      ],
-    ],
+    head: [["Data", "EPI", "Qtd", "CA", "Vencimento/troca", "Valor unit.", "Fornecedor"]],
+    body: entregas.map((entrega) => [
+      entrega.dataEntrega,
+      entrega.epi,
+      String(entrega.qtd),
+      entrega.ca || "—",
+      entrega.dataTroca || "—",
+      entrega.valorUnit ? fmtMoney(entrega.valorUnit) : "—",
+      entrega.fornecedor || "—",
+    ]),
     theme: "grid",
     styles: { fontSize: 9, cellPadding: 6, textColor: [20, 20, 20] },
     headStyles: { fillColor: [86, 164, 187], textColor: [255, 255, 255], fontStyle: "bold" },
@@ -137,13 +143,13 @@ export function gerarFichaEntregaEpiPdf(entrega: EntregaEpi, colaborador: Colabo
   }
 
   assinatura("ASSINATURA DO COLABORADOR", titleCase(colaborador.nome));
-  assinatura("ASSINATURA DO RESPONSÁVEL PELA ENTREGA", entrega.responsavel);
+  assinatura("ASSINATURA DO RESPONSÁVEL PELA ENTREGA", ficha.geradaPor);
 
   return doc;
 }
 
 /** Gera e dispara o download da ficha no navegador. */
-export function baixarFichaEntregaEpiPdf(entrega: EntregaEpi, colaborador: Colaborador): void {
-  const doc = gerarFichaEntregaEpiPdf(entrega, colaborador);
-  doc.save(nomeArquivoFichaEntregaEpi(entrega, colaborador));
+export function baixarFichaEntregaEpiPdf(entregas: EntregaEpi[], colaborador: Colaborador, ficha: FichaEntregaEpiInfo): void {
+  const doc = gerarFichaEntregaEpiPdf(entregas, colaborador, ficha);
+  doc.save(nomeArquivoFichaEntregaEpi(ficha, colaborador));
 }

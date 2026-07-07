@@ -57,10 +57,10 @@ export function DashboardPage() {
             </div>
           </div>
           <div className={styles.kpiGrid}>
-            <KpiCard icon={<Users size={18} />} value={data.fichasEpi.total} label="Entregas realizadas" />
+            <KpiCard icon={<Users size={18} />} value={data.fichasEpi.total} label="Fichas geradas" />
             <KpiCard icon={<FileSignature size={18} />} value={data.fichasEpi.assinadas} label="Fichas assinadas" tone="success" />
             <KpiCard icon={<CalendarClock size={18} />} value={data.fichasEpi.aguardando} label="Aguardando assinatura" tone="warning" />
-            <KpiCard icon={<TriangleAlert size={18} />} value={data.fichasEpi.pendentes} label="Ficha não gerada" tone="danger" />
+            <KpiCard icon={<TriangleAlert size={18} />} value={data.fichasEpi.semFicha} label="Entregas sem ficha ainda" tone="danger" />
           </div>
         </Card>
       ) : null}

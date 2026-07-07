@@ -1,17 +1,19 @@
 import { useMemo, useState } from "react";
-import { CircleCheck, Pencil, PackagePlus, Trash2, TriangleAlert } from "lucide-react";
+import { CircleCheck, FileDown, Pencil, PackagePlus, Trash2, TriangleAlert } from "lucide-react";
 import { Avatar, Button, Drawer } from "../../components/ui";
 import { useAuth } from "../../auth/AuthContext";
 import { usePortalStore } from "../../store/PortalStoreContext";
 import { portalRepository } from "../../repositories/portalRepository";
 import { deptName, fmtMoney, iniciais, maskCpf, titleCase } from "../../domain/text";
-import { idadeFromISO, isoToBR } from "../../domain/dates";
+import { idadeFromISO, isoToBR, stamp } from "../../domain/dates";
 import { matrizEpiParaColaborador } from "../../domain/matriz";
+import { baixarFichaEntregaEpiPdf } from "../../domain/pdf/fichaEntregaEpi";
 import { divergenciaEpiPara } from "./lib/epiUtils";
 import { RegistrarEntregaEpiModal } from "./RegistrarEntregaEpiModal";
 import type { RegistrarEntregaEpiPayload } from "./RegistrarEntregaEpiModal";
 import { ExcluirEntregaEpiModal } from "./ExcluirEntregaEpiModal";
-import { EntregaAssinaturaControls } from "./EntregaAssinaturaControls";
+import { FichaEpiControls } from "./FichaEpiControls";
+import { uid } from "../../store/seed";
 import type { EntregaEpi } from "../../types/domain";
 import styles from "./EpiFichaDrawer.module.css";
 
@@ -38,6 +40,17 @@ export function EpiFichaDrawer({ colabId, onClose }: EpiFichaDrawerProps) {
         .slice()
         .sort((a, b) => b.ts.localeCompare(a.ts)),
     [state.entregas, colabId],
+  );
+
+  const entregasAbertas = useMemo(() => entregas.filter((e) => !e.fichaId), [entregas]);
+
+  const fichasDoColab = useMemo(
+    () =>
+      state.fichasEpi
+        .filter((f) => f.colabId === colabId)
+        .slice()
+        .sort((a, b) => b.geradaEm.localeCompare(a.geradaEm)),
+    [state.fichasEpi, colabId],
   );
 
   if (!colaborador) {
@@ -91,13 +104,60 @@ export function EpiFichaDrawer({ colabId, onClose }: EpiFichaDrawerProps) {
     dispatch({ type: "EXCLUIR_ENTREGA_EPI", entregaId, by: user.email });
   }
 
-  function handleFichaGerada(entregaId: string) {
-    dispatch({ type: "MARCAR_FICHA_EPI_GERADA", entregaId });
+  function handleGerarFicha() {
+    if (!user || !colaborador || entregasAbertas.length === 0) return;
+    const fichaId = uid("F");
+    const geradaEm = stamp();
+    // gera o PDF com o lote exatamente como está agora, antes de "fechar" o lote no estado.
+    baixarFichaEntregaEpiPdf(entregasAbertas, colaborador, { id: fichaId, geradaEm, geradaPor: user.email });
+    dispatch({
+      type: "GERAR_FICHA_EPI",
+      fichaId,
+      colabId,
+      entregaIds: entregasAbertas.map((e) => e.id),
+      by: user.email,
+    });
   }
 
-  function handleAnexarAssinatura(entregaId: string, fileName: string, fileDataUrl: string, mime: string) {
+  function handleAnexarAssinatura(fichaId: string, fileName: string, fileDataUrl: string, mime: string) {
     if (!user) return;
-    dispatch({ type: "ANEXAR_FICHA_EPI_ASSINADA", entregaId, fileName, fileDataUrl, mime, by: user.email });
+    dispatch({ type: "ANEXAR_FICHA_EPI_ASSINADA", fichaId, fileName, fileDataUrl, mime, by: user.email });
+  }
+
+  function renderEntregaCard(e: EntregaEpi, editable: boolean) {
+    return (
+      <div key={e.id} className={styles.entregaCard}>
+        <div className={styles.entregaHeader}>
+          <strong>{e.epi}</strong>
+          <div className={styles.entregaHeaderRight}>
+            <span className="mono">{e.dataEntrega}</span>
+            {editable ? (
+              <>
+                <button type="button" className={styles.entregaIconButton} title="Editar entrega" onClick={() => setEntregaEmEdicao(e)}>
+                  <Pencil size={13} />
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.entregaIconButton} ${styles.entregaIconButtonDanger}`}
+                  title="Excluir entrega"
+                  onClick={() => setEntregaParaExcluir(e)}
+                >
+                  <Trash2 size={13} />
+                </button>
+              </>
+            ) : null}
+          </div>
+        </div>
+        <div className={styles.entregaMeta}>
+          CA {e.ca || "—"} · Qtd {e.qtd} · {e.fornecedor || "Fornecedor não informado"}
+        </div>
+        <div className={styles.entregaMeta}>
+          {fmtMoney(e.valorUnit)} / un · Troca prevista: <span className="mono">{e.dataTroca || "—"}</span>
+        </div>
+        {e.obs ? <div className={styles.entregaObs}>{e.obs}</div> : null}
+        <div className={styles.entregaResp}>Registrado por {e.responsavel}</div>
+      </div>
+    );
   }
 
   return (
@@ -160,53 +220,38 @@ export function EpiFichaDrawer({ colabId, onClose }: EpiFichaDrawerProps) {
         <div className={styles.emptyInline}>Nenhuma entrega registrada para este colaborador ainda.</div>
       ) : (
         <div className={styles.entregaList}>
-          {entregas.map((e) => (
-            <div key={e.id} className={styles.entregaCard}>
-              <div className={styles.entregaHeader}>
-                <strong>{e.epi}</strong>
-                <div className={styles.entregaHeaderRight}>
-                  <span className="mono">{e.dataEntrega}</span>
-                  {canEdit ? (
-                    <>
-                      <button
-                        type="button"
-                        className={styles.entregaIconButton}
-                        title="Editar entrega"
-                        onClick={() => setEntregaEmEdicao(e)}
-                      >
-                        <Pencil size={13} />
-                      </button>
-                      <button
-                        type="button"
-                        className={`${styles.entregaIconButton} ${styles.entregaIconButtonDanger}`}
-                        title="Excluir entrega"
-                        onClick={() => setEntregaParaExcluir(e)}
-                      >
-                        <Trash2 size={13} />
-                      </button>
-                    </>
-                  ) : null}
+          {entregasAbertas.length > 0 ? (
+            <div className={styles.loteAberto}>
+              <div className={styles.loteAbertoLabel}>
+                Ainda não incluído em uma ficha ({entregasAbertas.length} item{entregasAbertas.length > 1 ? "s" : ""})
+              </div>
+              {entregasAbertas.map((e) => renderEntregaCard(e, canEdit))}
+              {canEdit ? (
+                <Button onClick={handleGerarFicha} className={styles.gerarFichaButton}>
+                  <FileDown size={15} /> Gerar ficha (PDF) — {entregasAbertas.length} item{entregasAbertas.length > 1 ? "s" : ""}
+                </Button>
+              ) : null}
+            </div>
+          ) : null}
+
+          {fichasDoColab.map((ficha) => {
+            const entregasDaFicha = entregas.filter((e) => e.fichaId === ficha.id);
+            return (
+              <div key={ficha.id} className={styles.fichaGrupo}>
+                <div className={styles.fichaGrupoHeader}>Ficha gerada em {ficha.geradaEm}</div>
+                {entregasDaFicha.map((e) => renderEntregaCard(e, false))}
+                <div className={styles.fichaGrupoControles}>
+                  <FichaEpiControls
+                    ficha={ficha}
+                    entregas={entregasDaFicha}
+                    colaborador={colaborador}
+                    canEdit={canEdit}
+                    onAnexarAssinatura={(fileName, fileDataUrl, mime) => handleAnexarAssinatura(ficha.id, fileName, fileDataUrl, mime)}
+                  />
                 </div>
               </div>
-              <div className={styles.entregaMeta}>
-                CA {e.ca || "—"} · Qtd {e.qtd} · {e.fornecedor || "Fornecedor não informado"}
-              </div>
-              <div className={styles.entregaMeta}>
-                {fmtMoney(e.valorUnit)} / un · Troca prevista: <span className="mono">{e.dataTroca || "—"}</span>
-              </div>
-              {e.obs ? <div className={styles.entregaObs}>{e.obs}</div> : null}
-              <div className={styles.entregaResp}>Registrado por {e.responsavel}</div>
-              <div className={styles.entregaFicha}>
-                <EntregaAssinaturaControls
-                  entrega={e}
-                  colaborador={colaborador}
-                  canEdit={canEdit}
-                  onFichaGerada={() => handleFichaGerada(e.id)}
-                  onAnexarAssinatura={(fileName, fileDataUrl, mime) => handleAnexarAssinatura(e.id, fileName, fileDataUrl, mime)}
-                />
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

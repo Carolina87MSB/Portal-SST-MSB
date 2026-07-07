@@ -6,8 +6,8 @@ import { portalRepository } from "../../../repositories/portalRepository";
 import { deptName, fmtMoney, titleCase } from "../../../domain/text";
 import { parseBR } from "../../../domain/dates";
 import { matchesColaboradorSearch } from "../lib/epiUtils";
-import { EntregaAssinaturaControls } from "../EntregaAssinaturaControls";
-import type { Colaborador, EntregaEpi } from "../../../types/domain";
+import { FichaEpiControls } from "../FichaEpiControls";
+import type { Colaborador, EntregaEpi, FichaEntregaEpi } from "../../../types/domain";
 import shared from "../EpiShared.module.css";
 import styles from "./HistoricoTab.module.css";
 
@@ -170,11 +170,12 @@ export function HistoricoTab() {
                   key={entrega.id}
                   entrega={entrega}
                   colab={colab}
+                  ficha={entrega.fichaId ? state.fichasEpi.find((f) => f.id === entrega.fichaId) : undefined}
+                  entregasDaFicha={entrega.fichaId ? state.entregas.filter((e) => e.fichaId === entrega.fichaId) : []}
                   canEdit={canEdit}
-                  onFichaGerada={() => dispatch({ type: "MARCAR_FICHA_EPI_GERADA", entregaId: entrega.id })}
-                  onAnexarAssinatura={(fileName, fileDataUrl, mime) => {
+                  onAnexarAssinatura={(fichaId, fileName, fileDataUrl, mime) => {
                     if (!user) return;
-                    dispatch({ type: "ANEXAR_FICHA_EPI_ASSINADA", entregaId: entrega.id, fileName, fileDataUrl, mime, by: user.email });
+                    dispatch({ type: "ANEXAR_FICHA_EPI_ASSINADA", fichaId, fileName, fileDataUrl, mime, by: user.email });
                   }}
                 />
               ))}
@@ -189,12 +190,13 @@ export function HistoricoTab() {
 interface EntregaRowProps {
   entrega: EntregaEpi;
   colab: Colaborador | undefined;
+  ficha: FichaEntregaEpi | undefined;
+  entregasDaFicha: EntregaEpi[];
   canEdit: boolean;
-  onFichaGerada: () => void;
-  onAnexarAssinatura: (fileName: string, fileDataUrl: string, mime: string) => void;
+  onAnexarAssinatura: (fichaId: string, fileName: string, fileDataUrl: string, mime: string) => void;
 }
 
-function EntregaRow({ entrega, colab, canEdit, onFichaGerada, onAnexarAssinatura }: EntregaRowProps) {
+function EntregaRow({ entrega, colab, ficha, entregasDaFicha, canEdit, onAnexarAssinatura }: EntregaRowProps) {
   return (
     <Tr>
       <Td mono>{entrega.dataEntrega}</Td>
@@ -217,13 +219,17 @@ function EntregaRow({ entrega, colab, canEdit, onFichaGerada, onAnexarAssinatura
       <Td mono>{entrega.dataTroca || "—"}</Td>
       <Td>{entrega.responsavel}</Td>
       <Td>
-        <EntregaAssinaturaControls
-          entrega={entrega}
-          colaborador={colab}
-          canEdit={canEdit}
-          onFichaGerada={onFichaGerada}
-          onAnexarAssinatura={onAnexarAssinatura}
-        />
+        {ficha ? (
+          <FichaEpiControls
+            ficha={ficha}
+            entregas={entregasDaFicha}
+            colaborador={colab}
+            canEdit={canEdit}
+            onAnexarAssinatura={(fileName, fileDataUrl, mime) => onAnexarAssinatura(ficha.id, fileName, fileDataUrl, mime)}
+          />
+        ) : (
+          <span className={styles.semFicha}>Ainda não incluído em uma ficha</span>
+        )}
       </Td>
     </Tr>
   );

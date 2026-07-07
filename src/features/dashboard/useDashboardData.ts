@@ -5,7 +5,7 @@ import { deptName, fmtMoney, titleCase } from "../../domain/text";
 import { mesAbrev, mesISOfromBR } from "../../domain/dates";
 import { statusDoRegistro, toneForStatus } from "../../domain/exameStatus";
 import type { BadgeTone } from "../../domain/exameStatus";
-import { statusAssinaturaFor } from "../../domain/fichaAssinatura";
+import { statusFichaEpi } from "../../domain/fichaAssinatura";
 import type { Colaborador, ExameRegistro } from "../../types/domain";
 
 interface ExameFlat {
@@ -216,10 +216,10 @@ export function useDashboardData() {
     const difExamesSST = realizadoExamesTotal - previstoExamesAno;
 
     // ---------- fichas de entrega de EPI pendentes de assinatura ----------
-    const totalFichasEpi = state.entregas.length;
-    const fichasAssinadas = state.entregas.filter((e) => statusAssinaturaFor(e) === "assinada").length;
-    const fichasAguardando = state.entregas.filter((e) => statusAssinaturaFor(e) === "aguardando").length;
-    const fichasPendentes = totalFichasEpi - fichasAssinadas - fichasAguardando;
+    const totalFichasEpi = state.fichasEpi.length;
+    const fichasAssinadas = state.fichasEpi.filter((f) => statusFichaEpi(f) === "assinada").length;
+    const fichasAguardando = totalFichasEpi - fichasAssinadas;
+    const entregasSemFicha = state.entregas.filter((e) => !e.fichaId).length;
 
     return {
       kpi,
@@ -261,7 +261,7 @@ export function useDashboardData() {
         total: totalFichasEpi,
         assinadas: fichasAssinadas,
         aguardando: fichasAguardando,
-        pendentes: fichasPendentes,
+        semFicha: entregasSemFicha,
       },
     };
   }, [state]);

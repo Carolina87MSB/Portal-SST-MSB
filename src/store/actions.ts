@@ -71,6 +71,6 @@ export type PortalAction =
       by: string;
     }
   | { type: "EDITAR_PRECO_FARDAMENTO"; tipo: string; valor: number; fornecedor: string; dataCotacao: string; by: string }
-  | { type: "MARCAR_FICHA_EPI_GERADA"; entregaId: string }
-  | { type: "ANEXAR_FICHA_EPI_ASSINADA"; entregaId: string; fileName: string; fileDataUrl: string; mime: string; by: string }
+  | { type: "GERAR_FICHA_EPI"; fichaId: string; colabId: number; entregaIds: string[]; by: string }
+  | { type: "ANEXAR_FICHA_EPI_ASSINADA"; fichaId: string; fileName: string; fileDataUrl: string; mime: string; by: string }
   | { type: "RESET" };
