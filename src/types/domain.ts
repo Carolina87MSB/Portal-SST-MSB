@@ -143,6 +143,8 @@ export interface EntregaEpi {
  */
 export interface FichaEntregaEpi {
   id: string;
+  /** Número sequencial global (1, 2, 3...), usado para montar o código "EPIRH001" exibido no PDF e na UI. */
+  numero: number;
   colabId: number;
   /** ids das EntregaEpi incluídas nesta ficha, na ordem em que aparecem no PDF. */
   entregaIds: string[];

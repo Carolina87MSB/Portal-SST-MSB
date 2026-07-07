@@ -2,6 +2,7 @@ import { FileDown, FileText } from "lucide-react";
 import { Modal } from "../../components/ui/Modal";
 import { EmptyState } from "../../components/ui/EmptyState";
 import { baixarFichaEntregaEpiPdf } from "../../domain/pdf/fichaEntregaEpi";
+import { codigoFichaEpi } from "../../domain/fichaAssinatura";
 import type { Colaborador, EntregaEpi, FichaEntregaEpi } from "../../types/domain";
 import styles from "./FichasAssinadasModal.module.css";
 
@@ -31,7 +32,7 @@ export function FichasAssinadasModal({ colaboradorNome, colaborador, fichas, ent
                   <strong>{itens.length} item{itens.length > 1 ? "ns" : ""}</strong>
                   <span className="mono">{ficha.assinaturaAnexadaEm}</span>
                 </div>
-                <div className={styles.cardMeta}>Ficha nº {ficha.id.slice(-8).toUpperCase()} · gerada em {ficha.geradaEm}</div>
+                <div className={styles.cardMeta}>Ficha nº {codigoFichaEpi(ficha.numero)} · gerada em {ficha.geradaEm}</div>
                 <div className={styles.cardMeta}>Anexada por {ficha.assinaturaResponsavel}</div>
                 <div className={styles.cardActions}>
                   <button

@@ -22,7 +22,7 @@ export function FichaEpiControls({ ficha, entregas, colaborador, canEdit, onAnex
 
   function handleVerPdf() {
     if (!colaborador) return;
-    baixarFichaEntregaEpiPdf(entregas, colaborador, { id: ficha.id, geradaEm: ficha.geradaEm, geradaPor: ficha.geradaPor });
+    baixarFichaEntregaEpiPdf(entregas, colaborador, ficha);
   }
 
   function handleFileSelected(e: ChangeEvent<HTMLInputElement>) {

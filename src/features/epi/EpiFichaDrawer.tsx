@@ -8,7 +8,7 @@ import { deptName, fmtMoney, iniciais, maskCpf, titleCase } from "../../domain/t
 import { idadeFromISO, isoToBR, stamp } from "../../domain/dates";
 import { matrizEpiParaColaborador } from "../../domain/matriz";
 import { baixarFichaEntregaEpiPdf } from "../../domain/pdf/fichaEntregaEpi";
-import { statusFichaEpi } from "../../domain/fichaAssinatura";
+import { codigoFichaEpi, statusFichaEpi } from "../../domain/fichaAssinatura";
 import { divergenciaEpiPara } from "./lib/epiUtils";
 import { RegistrarEntregaEpiModal } from "./RegistrarEntregaEpiModal";
 import type { RegistrarEntregaEpiPayload } from "./RegistrarEntregaEpiModal";
@@ -113,8 +113,11 @@ export function EpiFichaDrawer({ colabId, onClose }: EpiFichaDrawerProps) {
     if (!user || !colaborador || entregasAbertas.length === 0) return;
     const fichaId = uid("F");
     const geradaEm = stamp();
+    // mesmo cálculo sequencial que o reducer faz para GERAR_FICHA_EPI — seguro porque
+    // ambos partem do state atual, dentro do mesmo clique síncrono.
+    const numero = state.fichasEpi.length + 1;
     // gera o PDF com o lote exatamente como está agora, antes de "fechar" o lote no estado.
-    baixarFichaEntregaEpiPdf(entregasAbertas, colaborador, { id: fichaId, geradaEm, geradaPor: user.email });
+    baixarFichaEntregaEpiPdf(entregasAbertas, colaborador, { id: fichaId, numero, geradaEm, geradaPor: user.email });
     dispatch({
       type: "GERAR_FICHA_EPI",
       fichaId,
@@ -254,7 +257,9 @@ export function EpiFichaDrawer({ colabId, onClose }: EpiFichaDrawerProps) {
             const entregasDaFicha = entregas.filter((e) => e.fichaId === ficha.id);
             return (
               <div key={ficha.id} className={styles.fichaGrupo}>
-                <div className={styles.fichaGrupoHeader}>Ficha gerada em {ficha.geradaEm}</div>
+                <div className={styles.fichaGrupoHeader}>
+                  Ficha nº {codigoFichaEpi(ficha.numero)} · gerada em {ficha.geradaEm}
+                </div>
                 {entregasDaFicha.map((e) => renderEntregaCard(e, false))}
                 <div className={styles.fichaGrupoControles}>
                   <FichaEpiControls

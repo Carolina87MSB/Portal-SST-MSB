@@ -18,3 +18,8 @@ export function labelStatusFichaEpi(status: StatusFichaEpi): string {
 export function toneStatusFichaEpi(status: StatusFichaEpi): BadgeTone {
   return status === "assinada" ? "success" : "warning";
 }
+
+/** Código sequencial da ficha exibido no PDF e na UI: EPIRH001, EPIRH002... */
+export function codigoFichaEpi(numero: number): string {
+  return `EPIRH${String(numero).padStart(3, "0")}`;
+}

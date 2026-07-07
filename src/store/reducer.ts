@@ -291,6 +291,8 @@ export function portalReducer(state: PortalState, action: PortalAction): PortalS
       if (idsValidos.size === 0) return state;
       const ficha = {
         id: action.fichaId,
+        // sequencial global (nunca reaproveitado, mesmo que uma ficha antiga seja removida no futuro).
+        numero: state.fichasEpi.length + 1,
         colabId: action.colabId,
         entregaIds: [...idsValidos],
         geradaEm: stamp(),

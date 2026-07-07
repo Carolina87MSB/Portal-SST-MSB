@@ -2,6 +2,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { Colaborador, EntregaEpi } from "../../types/domain";
 import { deptName, fmtCpfFull, fmtMoney, titleCase } from "../text";
+import { codigoFichaEpi } from "../fichaAssinatura";
 
 const DECLARACAO =
   "Declaro que recebi os Equipamentos de Proteção Individual relacionados acima, em perfeitas condições de uso, " +
@@ -14,6 +15,7 @@ interface JsPdfWithAutoTable extends jsPDF {
 
 export interface FichaEntregaEpiInfo {
   id: string;
+  numero: number;
   geradaEm: string;
   geradaPor: string;
 }
@@ -25,7 +27,7 @@ export function nomeArquivoFichaEntregaEpi(ficha: FichaEntregaEpiInfo, colaborad
     .replace(/[̀-ͯ]/g, "")
     .replace(/\s+/g, "-");
   const data = ficha.geradaEm.split(" ")[0]?.replace(/\//g, "-") ?? "data";
-  return `ficha-entrega-epi_${nome}_${data}.pdf`;
+  return `${codigoFichaEpi(ficha.numero)}_${nome}_${data}.pdf`;
 }
 
 /** Gera (em memória) a Ficha de Entrega de EPI em PDF, com uma linha por EPI do lote. */
@@ -79,7 +81,7 @@ export function gerarFichaEntregaEpiPdf(entregas: EntregaEpi[], colaborador: Col
   bloco(
     "DADOS DA ENTREGA",
     [
-      ["Ficha nº", ficha.id.slice(-8).toUpperCase()],
+      ["Ficha nº", codigoFichaEpi(ficha.numero)],
       ["Gerada em", ficha.geradaEm],
       ["Responsável pelo registro", ficha.geradaPor],
     ],
