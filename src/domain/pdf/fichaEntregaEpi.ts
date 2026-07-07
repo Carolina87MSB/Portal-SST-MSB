@@ -39,7 +39,8 @@ export function gerarFichaEntregaEpiPdf(entregas: EntregaEpi[], colaborador: Col
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(13);
-  doc.text("MSB · Medical System do Brasil", marginLeft, y);
+  // "·" (meio-ponto) não renderiza nas fontes padrão do jsPDF (vira um retângulo) — usa "-".
+  doc.text("MSB - Medical System do Brasil", marginLeft, y);
   y += 20;
   doc.setFontSize(11.5);
   doc.text("Ficha de Entrega de Equipamento de Proteção Individual (EPI)", marginLeft, y);
