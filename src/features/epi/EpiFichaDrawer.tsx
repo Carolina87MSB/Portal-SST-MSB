@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { CircleCheck, FileDown, Pencil, PackagePlus, Trash2, TriangleAlert } from "lucide-react";
+import { CircleCheck, FileCheck2, FileDown, Pencil, PackagePlus, Trash2, TriangleAlert } from "lucide-react";
 import { Avatar, Button, Drawer } from "../../components/ui";
 import { useAuth } from "../../auth/AuthContext";
 import { usePortalStore } from "../../store/PortalStoreContext";
@@ -8,11 +8,13 @@ import { deptName, fmtMoney, iniciais, maskCpf, titleCase } from "../../domain/t
 import { idadeFromISO, isoToBR, stamp } from "../../domain/dates";
 import { matrizEpiParaColaborador } from "../../domain/matriz";
 import { baixarFichaEntregaEpiPdf } from "../../domain/pdf/fichaEntregaEpi";
+import { statusFichaEpi } from "../../domain/fichaAssinatura";
 import { divergenciaEpiPara } from "./lib/epiUtils";
 import { RegistrarEntregaEpiModal } from "./RegistrarEntregaEpiModal";
 import type { RegistrarEntregaEpiPayload } from "./RegistrarEntregaEpiModal";
 import { ExcluirEntregaEpiModal } from "./ExcluirEntregaEpiModal";
 import { FichaEpiControls } from "./FichaEpiControls";
+import { FichasAssinadasModal } from "./FichasAssinadasModal";
 import { uid } from "../../store/seed";
 import type { EntregaEpi } from "../../types/domain";
 import styles from "./EpiFichaDrawer.module.css";
@@ -28,6 +30,7 @@ export function EpiFichaDrawer({ colabId, onClose }: EpiFichaDrawerProps) {
   const [showEntregaModal, setShowEntregaModal] = useState(false);
   const [entregaEmEdicao, setEntregaEmEdicao] = useState<EntregaEpi | null>(null);
   const [entregaParaExcluir, setEntregaParaExcluir] = useState<EntregaEpi | null>(null);
+  const [showFichasAssinadas, setShowFichasAssinadas] = useState(false);
 
   const colaborador = state.colaboradores.find((c) => c.id === colabId);
   const matrizEpi = useMemo(() => portalRepository.getMatrizEpi(), []);
@@ -52,6 +55,8 @@ export function EpiFichaDrawer({ colabId, onClose }: EpiFichaDrawerProps) {
         .sort((a, b) => b.geradaEm.localeCompare(a.geradaEm)),
     [state.fichasEpi, colabId],
   );
+
+  const fichasAssinadas = useMemo(() => fichasDoColab.filter((f) => statusFichaEpi(f) === "assinada"), [fichasDoColab]);
 
   if (!colaborador) {
     return (
@@ -215,7 +220,18 @@ export function EpiFichaDrawer({ colabId, onClose }: EpiFichaDrawerProps) {
         </div>
       ) : null}
 
-      <div className={styles.sectionTitle}>Histórico de entregas ({entregas.length})</div>
+      <div className={styles.sectionTitleRow}>
+        <div className={styles.sectionTitle}>Histórico de entregas ({entregas.length})</div>
+        <button
+          type="button"
+          className={styles.verAssinadasButton}
+          onClick={() => setShowFichasAssinadas(true)}
+          disabled={fichasAssinadas.length === 0}
+          title={fichasAssinadas.length === 0 ? "Nenhuma ficha assinada ainda" : "Ver histórico de fichas assinadas"}
+        >
+          <FileCheck2 size={13} /> Fichas assinadas ({fichasAssinadas.length})
+        </button>
+      </div>
       {entregas.length === 0 ? (
         <div className={styles.emptyInline}>Nenhuma entrega registrada para este colaborador ainda.</div>
       ) : (
@@ -283,6 +299,16 @@ export function EpiFichaDrawer({ colabId, onClose }: EpiFichaDrawerProps) {
           entrega={entregaParaExcluir}
           onClose={() => setEntregaParaExcluir(null)}
           onConfirm={() => handleExcluirEntrega(entregaParaExcluir.id)}
+        />
+      ) : null}
+
+      {showFichasAssinadas ? (
+        <FichasAssinadasModal
+          colaboradorNome={titleCase(colaborador.nome)}
+          colaborador={colaborador}
+          fichas={fichasAssinadas}
+          entregas={entregas}
+          onClose={() => setShowFichasAssinadas(false)}
         />
       ) : null}
     </Drawer>
