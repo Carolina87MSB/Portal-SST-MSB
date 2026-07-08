@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { usePortalStore } from "../../store/PortalStoreContext";
 import { portalRepository } from "../../repositories/portalRepository";
 import { deptName, fmtMoney, titleCase } from "../../domain/text";
-import { mesAbrev, mesISOfromBR } from "../../domain/dates";
+import { mesAbrev, mesISOfromBR, parseBR } from "../../domain/dates";
 import { statusDoRegistro, toneForStatus } from "../../domain/exameStatus";
 import type { BadgeTone } from "../../domain/exameStatus";
 import { statusFichaEpi } from "../../domain/fichaAssinatura";
@@ -49,11 +49,14 @@ export function useDashboardData() {
       .slice(0, 8)
       .map(({ colab, exame }) => {
         const status = statusDoRegistro(exame, hoje);
+        const proxima = parseBR(exame.proximo);
+        const diasAtraso = status === "Vencido" && proxima ? Math.round((hoje.getTime() - proxima.getTime()) / 86_400_000) : null;
         return {
           nome: titleCase(colab.nome),
           departamento: deptName(colab.departamento),
           item: exame.proc,
           vencimento: exame.proximo,
+          diasAtraso,
           status,
           tone: toneForStatus(status) as BadgeTone,
         };

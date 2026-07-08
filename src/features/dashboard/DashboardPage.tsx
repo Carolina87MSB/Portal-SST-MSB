@@ -82,6 +82,7 @@ export function DashboardPage() {
               <Th>Departamento</Th>
               <Th>Exame</Th>
               <Th>Próxima data</Th>
+              <Th>Dias em atraso</Th>
               <Th>Status</Th>
             </THead>
             <tbody>
@@ -93,6 +94,7 @@ export function DashboardPage() {
                   <Td>{row.departamento}</Td>
                   <Td>{row.item}</Td>
                   <Td mono>{row.vencimento}</Td>
+                  <Td mono>{row.diasAtraso != null ? row.diasAtraso : "—"}</Td>
                   <Td>
                     <StatusBadge label={row.status} tone={row.tone} />
                   </Td>
