@@ -31,6 +31,8 @@ interface AnexarExameModalProps {
   initialColabId?: number;
   /** Quando informado junto de initialColabId, o exame específico também vem travado (sem seletor de tipo/exame). */
   initialProc?: string;
+  /** Tipo de ASO pré-selecionado (ex.: "Demissional" ao vir do fluxo de desligamento) — o exame específico continua livre para escolha. */
+  initialTipo?: string;
   onClose: () => void;
   onSave: (payload: AnexarExamePayload) => void;
 }
@@ -43,6 +45,7 @@ export function AnexarExameModal({
   examePrecos,
   initialColabId,
   initialProc,
+  initialTipo,
   onClose,
   onSave,
 }: AnexarExameModalProps) {
@@ -50,7 +53,7 @@ export function AnexarExameModal({
   const procLocked = !!initialProc;
 
   const [colabId, setColabId] = useState<number | null>(initialColabId ?? null);
-  const [tipo, setTipo] = useState<string>(tiposAso()[0] ?? "Periódico");
+  const [tipo, setTipo] = useState<string>(initialTipo ?? tiposAso()[0] ?? "Periódico");
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [dataRealizadaIso, setDataRealizadaIso] = useState("");
   const [proximoBR, setProximoBR] = useState("");

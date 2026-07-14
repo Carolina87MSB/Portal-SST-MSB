@@ -24,6 +24,7 @@ export function ExameFichaDrawer({ colabId, onClose }: ExameFichaDrawerProps) {
   const { user, canEdit } = useAuth();
   const { state, dispatch } = usePortalStore();
   const [anexarProc, setAnexarProc] = useState<string | undefined | null>(null);
+  const [anexarTipo, setAnexarTipo] = useState<string | undefined>(undefined);
   const [desligarOpen, setDesligarOpen] = useState(false);
 
   const colaborador = state.colaboradores.find((c) => c.id === colabId);
@@ -74,11 +75,17 @@ export function ExameFichaDrawer({ colabId, onClose }: ExameFichaDrawerProps) {
     return attachments.find((a) => a.proc === proc);
   }
 
-  async function handleDesligar(dataIso: string, motivo: string) {
+  async function handleDesligar(dataIso: string, motivo: string, precisaExameDemissional: boolean) {
     if (!user) return { ok: false as const, error: "Sessão expirada — faça login novamente." };
     const result = await colaboradoresRepository.desligarColaborador(colabId, dataIso, motivo);
     if (!result.ok) return result;
     dispatch({ type: "DESLIGAR_COLABORADOR", colabId, date: isoToBR(dataIso), motivo, by: user.email });
+    if (precisaExameDemissional) {
+      // Abre o anexo de exame já com o tipo "Demissional" pré-selecionado — o exame
+      // específico (proc) continua livre, pois depende da matriz do cargo.
+      setAnexarTipo("Demissional");
+      setAnexarProc(undefined);
+    }
     return { ok: true as const };
   }
 
@@ -116,7 +123,12 @@ export function ExameFichaDrawer({ colabId, onClose }: ExameFichaDrawerProps) {
 
       {canEdit && !desligamento ? (
         <div className={styles.actionsRow}>
-          <Button onClick={() => setAnexarProc(undefined)}>
+          <Button
+            onClick={() => {
+              setAnexarTipo(undefined);
+              setAnexarProc(undefined);
+            }}
+          >
             <Plus size={15} /> Anexar exame
           </Button>
           <Button variant="danger" onClick={() => setDesligarOpen(true)}>
@@ -163,7 +175,15 @@ export function ExameFichaDrawer({ colabId, onClose }: ExameFichaDrawerProps) {
                     )
                   ) : null}
                   {podeAnexar ? (
-                    <button type="button" className={shared.iconButton} title="Anexar exame" onClick={() => setAnexarProc(exame.proc)}>
+                    <button
+                      type="button"
+                      className={shared.iconButton}
+                      title="Anexar exame"
+                      onClick={() => {
+                        setAnexarTipo(undefined);
+                        setAnexarProc(exame.proc);
+                      }}
+                    >
                       <Paperclip size={13} />
                     </button>
                   ) : null}
@@ -214,7 +234,11 @@ export function ExameFichaDrawer({ colabId, onClose }: ExameFichaDrawerProps) {
           examePrecos={state.examePrecos}
           initialColabId={colabId}
           initialProc={anexarProc}
-          onClose={() => setAnexarProc(null)}
+          initialTipo={anexarTipo}
+          onClose={() => {
+            setAnexarProc(null);
+            setAnexarTipo(undefined);
+          }}
           onSave={handleAnexar}
         />
       ) : null}
