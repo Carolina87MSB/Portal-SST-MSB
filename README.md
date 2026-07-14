@@ -36,7 +36,9 @@ Sem um `.env.local` preenchido, o app sobe normalmente mas mostra a tela de logi
 ## Deploy na Vercel
 
 1. Importe o repositório `Carolina87MSB/Portal-SST-MSB` na Vercel (framework detectado automaticamente: Vite).
-2. Em _Settings → Environment Variables_, adicione `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY` (os mesmos valores do `.env.local`). **Atenção ao prefixo**: como o projeto é Vite (não Next.js), as variáveis precisam começar com `VITE_` — `NEXT_PUBLIC_...` não é lido pelo app e o build fica com o Supabase "não configurado" mesmo depois do deploy. Nunca adicione `SUPABASE_SERVICE_ROLE_KEY` na Vercel — essa chave é só para rodar `npm run seed:supabase` localmente.
+2. Em _Settings → Environment Variables_, adicione:
+   - `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY` (os mesmos valores do `.env.local`). **Atenção ao prefixo**: como o projeto é Vite (não Next.js), as variáveis precisam começar com `VITE_` — `NEXT_PUBLIC_...` não é lido pelo app e o build fica com o Supabase "não configurado" mesmo depois do deploy.
+   - `SUPABASE_SERVICE_ROLE_KEY` — **sem** prefixo `VITE_` (fica só no servidor, nunca chega ao navegador). Antes só era usada localmente por `npm run seed:supabase`; agora também é usada pela Vercel Serverless Function em `api/desligar-colaborador.ts` para gravar o desligamento (a RLS da tabela `colaboradores` continua sem liberar UPDATE para a API pública — só essa function, rodando no servidor, consegue escrever).
 3. Depois do primeiro deploy, volte em Supabase → _Authentication → URL Configuration_ e adicione a URL da Vercel como redirect permitido do magic link.
 
 ## Acesso
@@ -46,11 +48,16 @@ Login por **link mágico** (e-mail corporativo `@msbbrasil.com`, sem senha) via 
 ## Arquitetura
 
 ```
+api/                        Vercel Serverless Functions (Node, só servidor — nunca no bundle do navegador)
+  _lib/adminAuth.ts           confere sessão Supabase Auth válida; client admin com a service_role key
+  desligar-colaborador.ts      POST — grava desligado/data_desligamento/motivo_desligamento na tabela
+                              colaboradores (RLS não libera UPDATE público, só esta function)
 src/
   types/domain.ts          entidades de domínio (Colaborador, ExameRegistro, MatrizOcupacional, ...)
   lib/supabaseClient.ts    cliente Supabase único, lido de variáveis de ambiente
   repositories/
-    colaboradoresRepository.ts   busca colaboradores no Supabase (único dado pessoal/sensível)
+    colaboradoresRepository.ts   busca colaboradores no Supabase (único dado pessoal/sensível) e
+                                 chama api/desligar-colaborador.ts para persistir desligamentos
     portalRepository.ts          catálogos e matrizes estáticos, sem dado pessoal (JSON no bundle)
   domain/                  regras de negócio puras (status de exame, datas, textos/máscaras, matriz
                            função → EPI/exames) — testáveis isoladamente, sem React
@@ -94,12 +101,12 @@ A base de colaboradores contém **dados reais**: nome completo, CPF, data de nas
 Próximos incrementos de segurança sugeridos (fora do escopo atual):
 
 1. Tabela `profiles` associando usuário Supabase → papel (`rh` / `leitura`), hoje todo usuário autenticado é tratado como RH.
-2. Mover também o estado editável (entregas, anexos, preços, desligamentos, log) do `localStorage` para tabelas no Supabase — hoje só a leitura de colaboradores foi migrada; ver `src/store/PortalStoreContext.tsx`.
+2. Mover também o estado editável (entregas, anexos, preços, log) do `localStorage` para tabelas no Supabase — hoje só a leitura de colaboradores e o status de desligamento (`desligado`/`data_desligamento`/`motivo_desligamento`, direto na tabela `colaboradores`) foram migrados; ver `src/store/PortalStoreContext.tsx`.
 3. Logging/auditoria server-side das ações do RH (hoje a trilha em **Exames → Histórico** é local ao navegador).
 
 ## Funcionalidades não implementadas (fora de escopo desta etapa)
 
 - Importação de planilha Excel pelo navegador (havia um protótipo disso no design original) — ver aba **Configurações**, que documenta isso como item de roadmap.
-- Integrações **PeopleFlow** e **Academia MSB** — presentes na navegação como "previstas", sem automação.
+- Integração **Academia MSB** — presente na navegação como "prevista", sem automação. **PeopleFlow** já tem uma integração real: os dois portais compartilham o mesmo projeto Supabase e a mesma tabela `colaboradores`; ao desligar alguém aqui, ele aparece automaticamente na aba Desligados do PeopleFlow (ver `api/desligar-colaborador.ts` e o README do PeopleFlow).
 - Exportação de relatórios em PDF (apenas CSV foi implementado em **Relatórios**).
 - Distinção real de papel "somente leitura" (hoje todo login autenticado tem permissão de RH — ver item 1 acima).

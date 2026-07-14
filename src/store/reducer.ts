@@ -19,7 +19,16 @@ function atualizarPreco(atual: PrecoInfo | undefined, valor: number, fornecedor:
 export function portalReducer(state: PortalState, action: PortalAction): PortalState {
   switch (action.type) {
     case "SET_COLABORADORES": {
-      return { ...state, colaboradores: action.colaboradores };
+      // A tabela colaboradores agora é a fonte da verdade para desligamento
+      // (ver api/desligar-colaborador.ts) — reconstrói state.desligados a
+      // partir dela a cada carga, em vez de confiar em estado local antigo.
+      const desligados: PortalState["desligados"] = {};
+      action.colaboradores.forEach((c) => {
+        if (c.desligado) {
+          desligados[c.id] = { date: c.dataDesligamento, motivo: c.motivoDesligamento, by: c.desligadoBy };
+        }
+      });
+      return { ...state, colaboradores: action.colaboradores, desligados };
     }
 
     case "REGISTRAR_ENTREGA_EPI": {

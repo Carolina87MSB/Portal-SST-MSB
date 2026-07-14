@@ -4,6 +4,7 @@ import { Avatar, Button, Drawer, StatusBadge } from "../../components/ui";
 import { useAuth } from "../../auth/AuthContext";
 import { usePortalStore } from "../../store/PortalStoreContext";
 import { portalRepository } from "../../repositories/portalRepository";
+import { colaboradoresRepository } from "../../repositories/colaboradoresRepository";
 import { statusDoRegistro, toneForStatus } from "../../domain/exameStatus";
 import { deptName, fmtMoney, iniciais, maskCpf, titleCase } from "../../domain/text";
 import { idadeFromISO, isoToBR } from "../../domain/dates";
@@ -73,9 +74,12 @@ export function ExameFichaDrawer({ colabId, onClose }: ExameFichaDrawerProps) {
     return attachments.find((a) => a.proc === proc);
   }
 
-  function handleDesligar(dateBR: string, motivo: string) {
-    if (!user) return;
-    dispatch({ type: "DESLIGAR_COLABORADOR", colabId, date: dateBR, motivo, by: user.email });
+  async function handleDesligar(dataIso: string, motivo: string) {
+    if (!user) return { ok: false as const, error: "Sessão expirada — faça login novamente." };
+    const result = await colaboradoresRepository.desligarColaborador(colabId, dataIso, motivo);
+    if (!result.ok) return result;
+    dispatch({ type: "DESLIGAR_COLABORADOR", colabId, date: isoToBR(dataIso), motivo, by: user.email });
+    return { ok: true as const };
   }
 
   return (

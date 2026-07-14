@@ -39,3 +39,23 @@ create policy "authenticated_can_read_colaboradores"
   for select
   to authenticated
   using (true);
+
+-- Desligamento — campos usados também pelo Portal PeopleFlow (mesmo projeto
+-- Supabase, mesma tabela `colaboradores`). Colunas novas, todas opcionais;
+-- não afetam nenhuma leitura/policy existente.
+--
+-- Diferente do resto da tabela (carregada só pelo script de seed local com a
+-- service_role key), o desligamento é gravado a partir do próprio app: a ação
+-- "Desligar colaborador" chama a Vercel Serverless Function em
+-- api/desligar-colaborador.ts, que usa a service_role key no servidor — a
+-- policy de RLS abaixo continua sem permitir UPDATE via API pública.
+alter table public.colaboradores
+  add column if not exists desligado boolean not null default false,
+  add column if not exists data_desligamento date,
+  add column if not exists motivo_desligamento text,
+  add column if not exists desligado_by text;
+
+comment on column public.colaboradores.desligado is 'true quando o colaborador foi desligado (ver api/desligar-colaborador.ts).';
+comment on column public.colaboradores.data_desligamento is 'Data do desligamento.';
+comment on column public.colaboradores.motivo_desligamento is 'Motivo informado no momento do desligamento.';
+comment on column public.colaboradores.desligado_by is 'E-mail do usuário RH que registrou o desligamento.';

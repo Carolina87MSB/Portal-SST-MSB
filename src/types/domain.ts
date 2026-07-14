@@ -19,6 +19,10 @@ export interface Colaborador {
   exames: ExameRegistro[];
   origem: string;
   nascimento: string; // ISO aaaa-mm-dd
+  desligado: boolean;
+  dataDesligamento: string; // dd/mm/aaaa ou "" se não desligado
+  motivoDesligamento: string;
+  desligadoBy: string; // e-mail de quem registrou o desligamento
 }
 
 export interface MatrizEpiFuncao {
