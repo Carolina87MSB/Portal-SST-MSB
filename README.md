@@ -10,7 +10,7 @@ Pré-requisito: [Node.js](https://nodejs.org) 20+.
 
 1. **Crie um projeto no Supabase** (gratuito) em [supabase.com](https://supabase.com/dashboard) — leva ~3 minutos.
 2. **Rode o schema**: abra _SQL Editor_ no painel do projeto, cole o conteúdo de [`supabase/schema.sql`](supabase/schema.sql) e execute. Isso cria a tabela `colaboradores` com RLS (só usuários autenticados leem).
-3. **Crie as contas do RH**: em _Authentication → Users → Add user_, crie uma entrada para cada e-mail autorizado (ex. `carolina.cruz@msbbrasil.com`, `leslie.souza@msbbrasil.com`). Não é preciso senha — o login é por link mágico (magic link) enviado ao e-mail. **Não há autocadastro**: só quem tem conta criada aqui consegue entrar.
+3. **Crie a primeira conta do RH**: em _Authentication → Users → Add user_, crie uma entrada para o primeiro e-mail autorizado (ex. `carolina.cruz@msbbrasil.com`). Não é preciso senha — o login é por link mágico (magic link) enviado ao e-mail. **Não há autocadastro**: só quem tem conta criada aqui (ou pela tela **Controle de Acessos** do próprio app, ver abaixo) consegue entrar. As contas seguintes (ex. `leslie.souza@msbbrasil.com`) não precisam mais do painel do Supabase.
 4. **Configure a URL de redirecionamento** do magic link em _Authentication → URL Configuration_: adicione `http://localhost:5173` (dev) e, depois do deploy, a URL da Vercel.
 5. **Copie as chaves**: em _Settings → API_, pegue a `Project URL`, a `Publishable key` (antigo nome: "anon public") e a `Secret key` (antigo nome: "service_role").
 6. **Configure o ambiente local**:
@@ -38,12 +38,18 @@ Sem um `.env.local` preenchido, o app sobe normalmente mas mostra a tela de logi
 1. Importe o repositório `Carolina87MSB/Portal-SST-MSB` na Vercel (framework detectado automaticamente: Vite).
 2. Em _Settings → Environment Variables_, adicione:
    - `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY` (os mesmos valores do `.env.local`). **Atenção ao prefixo**: como o projeto é Vite (não Next.js), as variáveis precisam começar com `VITE_` — `NEXT_PUBLIC_...` não é lido pelo app e o build fica com o Supabase "não configurado" mesmo depois do deploy.
-   - `SUPABASE_SERVICE_ROLE_KEY` — **sem** prefixo `VITE_` (fica só no servidor, nunca chega ao navegador). Antes só era usada localmente por `npm run seed:supabase`; agora também é usada pela Vercel Serverless Function em `api/desligar-colaborador.ts` para gravar o desligamento (a RLS da tabela `colaboradores` continua sem liberar UPDATE para a API pública — só essa function, rodando no servidor, consegue escrever).
+   - `SUPABASE_SERVICE_ROLE_KEY` — **sem** prefixo `VITE_` (fica só no servidor, nunca chega ao navegador). Antes só era usada localmente por `npm run seed:supabase`; agora também é usada pelas Vercel Serverless Functions em `api/*.ts` (desligamento e controle de acessos) — a RLS da tabela `colaboradores` continua sem liberar UPDATE para a API pública, só essas functions, rodando no servidor, conseguem escrever.
 3. Depois do primeiro deploy, volte em Supabase → _Authentication → URL Configuration_ e adicione a URL da Vercel como redirect permitido do magic link.
 
 ## Acesso
 
-Login por **link mágico** (e-mail corporativo `@msbbrasil.com`, sem senha) via Supabase Auth — ver `src/auth/AuthContext.tsx`. Só entram e-mails com conta previamente criada pelo RH no painel do Supabase (`shouldCreateUser: false`); não há cadastro aberto.
+Login por **link mágico** (e-mail corporativo `@msbbrasil.com`, sem senha) via Supabase Auth — ver `src/auth/AuthContext.tsx`. Só entram e-mails com conta previamente criada (painel do Supabase ou tela **Controle de Acessos**, `shouldCreateUser: false`); não há cadastro aberto.
+
+### Controle de Acessos (`/acessos`)
+
+Não existe distinção de perfil neste portal — toda conta autenticada tem o mesmo acesso (`canEdit` sempre `true`, ver `src/auth/AuthContext.tsx`). Por isso a tela é simples: um formulário pra liberar um novo e-mail e uma lista de quem já tem conta. Diferente do PeopleFlow (onde a lista vem de quem é gestor/RH/diretoria na tabela `colaboradores`), aqui não há "elegibilidade" — qualquer e-mail `@msbbrasil.com` que o RH decidir pode ganhar acesso.
+
+Funciona via duas Vercel Serverless Functions (`api/listar-acessos.ts`, `api/provisionar-acesso.ts`) que usam a `SUPABASE_SERVICE_ROLE_KEY` no servidor — essa chave nunca chega ao navegador. **Só funcionam em produção (Vercel) ou com `vercel dev`** — `npm run dev` (Vite puro) não executa `/api/*`, então localmente a tela mostra erro de carregamento; isso é esperado. A tela não tem opção de revogar acesso (só liberar) — para isso, use o painel do Supabase.
 
 ## Arquitetura
 
@@ -52,12 +58,16 @@ api/                        Vercel Serverless Functions (Node, só servidor — 
   _lib/adminAuth.ts           confere sessão Supabase Auth válida; client admin com a service_role key
   desligar-colaborador.ts      POST — grava desligado/data_desligamento/motivo_desligamento na tabela
                               colaboradores (RLS não libera UPDATE público, só esta function)
+  listar-acessos.ts             GET — lista e-mails com conta no Supabase Auth
+  provisionar-acesso.ts         POST — cria conta no Supabase Auth para um e-mail @msbbrasil.com
 src/
   types/domain.ts          entidades de domínio (Colaborador, ExameRegistro, MatrizOcupacional, ...)
   lib/supabaseClient.ts    cliente Supabase único, lido de variáveis de ambiente
   repositories/
     colaboradoresRepository.ts   busca colaboradores no Supabase (único dado pessoal/sensível) e
                                  chama api/desligar-colaborador.ts para persistir desligamentos
+    acessosRepository.ts          chama as Serverless Functions em api/*.ts (nunca fala com o
+                                 Supabase Auth admin direto do navegador)
     portalRepository.ts          catálogos e matrizes estáticos, sem dado pessoal (JSON no bundle)
   domain/                  regras de negócio puras (status de exame, datas, textos/máscaras, matriz
                            função → EPI/exames) — testáveis isoladamente, sem React
@@ -76,6 +86,7 @@ src/
                             ocupacional PCMSO+PGR, histórico, desligados)
     relatorios/             exportações (.csv) e indicadores
     config/                 departamentos, catálogo de EPI, integrações previstas
+    acessos/                 tela de Controle de Acessos (liberar/listar contas)
 scripts/seed-supabase.mjs  carrega src/data/colaboradores.json (local) na tabela do Supabase
 supabase/schema.sql        schema + RLS da tabela colaboradores
 ```

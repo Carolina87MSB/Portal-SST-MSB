@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { FileBarChart2, LayoutDashboard, Settings, ShieldCheck, Stethoscope } from "lucide-react";
+import { FileBarChart2, KeyRound, LayoutDashboard, Settings, ShieldCheck, Stethoscope } from "lucide-react";
 import styles from "./Sidebar.module.css";
 
 const NAV_ITEMS = [
@@ -8,6 +8,7 @@ const NAV_ITEMS = [
   { to: "/exames", label: "Exames Ocupacionais", icon: Stethoscope },
   { to: "/relatorios", label: "Relatórios", icon: FileBarChart2 },
   { to: "/config", label: "Configurações", icon: Settings },
+  { to: "/acessos", label: "Controle de Acessos", icon: KeyRound },
 ];
 
 export function Sidebar() {

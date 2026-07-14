@@ -9,6 +9,7 @@ import { EpiPage } from "./features/epi/EpiPage";
 import { ExamesPage } from "./features/exames/ExamesPage";
 import { RelatoriosPage } from "./features/relatorios/RelatoriosPage";
 import { ConfigPage } from "./features/config/ConfigPage";
+import { AcessosPage } from "./features/acessos/AcessosPage";
 
 function App() {
   return (
@@ -30,6 +31,7 @@ function App() {
               <Route path="/exames/*" element={<ExamesPage />} />
               <Route path="/relatorios" element={<RelatoriosPage />} />
               <Route path="/config" element={<ConfigPage />} />
+              <Route path="/acessos" element={<AcessosPage />} />
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Route>
           </Routes>

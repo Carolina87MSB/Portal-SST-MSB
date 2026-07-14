@@ -9,6 +9,7 @@ const PAGE_META: Record<string, PageMeta> = {
   exames: { title: "Exames Ocupacionais", subtitle: "Controle de ASO, vencimentos, histórico e desligados" },
   relatorios: { title: "Relatórios", subtitle: "Exportações, indicadores e regras futuras" },
   config: { title: "Configurações", subtitle: "Departamentos, catálogo, identificação e integrações" },
+  acessos: { title: "Controle de Acessos", subtitle: "Contas com acesso ao portal" },
 };
 
 export function pageMetaFromPath(pathname: string): PageMeta {
