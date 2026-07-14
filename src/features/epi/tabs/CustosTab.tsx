@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
-import { History, Pencil } from "lucide-react";
+import { History, Pencil, Plus } from "lucide-react";
 import { Button, Card, EmptyState, ProgressBar, Table, Td, Th, THead, Tr } from "../../../components/ui";
 import { PriceEditModal } from "../../../components/shared/PriceEditModal";
+import { AdicionarEpiModal } from "../AdicionarEpiModal";
 import { useAuth } from "../../../auth/AuthContext";
 import { usePortalStore } from "../../../store/PortalStoreContext";
 import { portalRepository } from "../../../repositories/portalRepository";
@@ -26,6 +27,7 @@ export function CustosTab() {
   const { user, canEdit } = useAuth();
   const { state, dispatch } = usePortalStore();
   const [editando, setEditando] = useState<string | null>(null);
+  const [adicionando, setAdicionando] = useState(false);
 
   const catalogo = useMemo(() => portalRepository.getEpiCatalogo(), []);
   const matrizEpi = useMemo(() => portalRepository.getMatrizEpi(), []);
@@ -73,13 +75,32 @@ export function CustosTab() {
     });
   }
 
+  function adicionarEpi(equip: string, valor: number, fornecedor: string, dataCotacaoIso: string) {
+    if (!user) return;
+    dispatch({
+      type: "EDITAR_PRECO_EPI",
+      equip,
+      valor,
+      fornecedor,
+      dataCotacao: dataCotacaoIso ? isoToBR(dataCotacaoIso) : "",
+      by: user.email,
+    });
+  }
+
   return (
     <div className={styles.wrap}>
-      <p className={shared.intro}>
-        Os valores unitários de cada EPI são editáveis pelo RH e mantêm histórico de cotações. A demanda é calculada a partir da matriz de
-        EPI por função — cada colaborador ativo soma 1 à demanda de todo equipamento obrigatório para sua função. O custo estimado é o
-        produto entre o valor unitário vigente e a demanda.
-      </p>
+      <div className={styles.headerRow}>
+        <p className={shared.intro}>
+          Os valores unitários de cada EPI são editáveis pelo RH e mantêm histórico de cotações. A demanda é calculada a partir da matriz de
+          EPI por função — cada colaborador ativo soma 1 à demanda de todo equipamento obrigatório para sua função. O custo estimado é o
+          produto entre o valor unitário vigente e a demanda.
+        </p>
+        {canEdit ? (
+          <Button onClick={() => setAdicionando(true)}>
+            <Plus size={15} /> Adicionar EPI
+          </Button>
+        ) : null}
+      </div>
 
       <div className={shared.chipsRow}>
         <div className={shared.chip}>
@@ -156,6 +177,14 @@ export function CustosTab() {
           historico={linhaEditando.historico}
           onClose={() => setEditando(null)}
           onSave={salvarPreco}
+        />
+      ) : null}
+
+      {adicionando ? (
+        <AdicionarEpiModal
+          nomesExistentes={linhas.map((l) => l.equip)}
+          onClose={() => setAdicionando(false)}
+          onSave={adicionarEpi}
         />
       ) : null}
     </div>

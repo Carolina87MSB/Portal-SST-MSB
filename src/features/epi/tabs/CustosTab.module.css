@@ -4,6 +4,14 @@
   gap: 14px;
 }
 
+.headerRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
 .equipCell {
   display: flex;
   align-items: center;
