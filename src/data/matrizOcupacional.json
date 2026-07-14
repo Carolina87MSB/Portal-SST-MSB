@@ -9,6 +9,7 @@
     {
       "codigo": "0295",
       "nome": "AVALIAÇÃO CLINICA OCUPACIONAL",
+      "valor": 20,
       "cargos": 55,
       "periodicidades": [
         "A cada 12 meses"
@@ -25,6 +26,7 @@
     {
       "codigo": "0673",
       "nome": "GRUPO SANGUÍNEO / FATOR RH",
+      "valor": 14.8,
       "cargos": 55,
       "periodicidades": [],
       "situacoes": [
@@ -36,6 +38,7 @@
     {
       "codigo": "0530",
       "nome": "ECG",
+      "valor": 30,
       "cargos": 55,
       "periodicidades": [
         "A cada 12 meses"
@@ -55,6 +58,7 @@
     {
       "codigo": "1410",
       "nome": "RAIO X - COLUNA LOMBAR",
+      "valor": 42,
       "cargos": 17,
       "periodicidades": [
         "A cada 24 meses"
@@ -71,6 +75,7 @@
     {
       "codigo": "0693",
       "nome": "HEMOGRAMA COMPLETO",
+      "valor": 15,
       "cargos": 13,
       "periodicidades": [
         "A cada 12 meses"
@@ -87,6 +92,7 @@
     {
       "codigo": "0296",
       "nome": "ACUIDADE VISUAL",
+      "valor": 22.5,
       "cargos": 13,
       "periodicidades": [
         "A cada 12 meses"
@@ -103,6 +109,7 @@
     {
       "codigo": "1057",
       "nome": "ESPIROMETRIA",
+      "valor": 28,
       "cargos": 13,
       "periodicidades": [
         "A cada 12 meses"
@@ -119,6 +126,7 @@
     {
       "codigo": "1086",
       "nome": "RETICULOCITOS",
+      "valor": 7,
       "cargos": 13,
       "periodicidades": [
         "A cada 12 meses"
@@ -135,6 +143,7 @@
     {
       "codigo": "0281",
       "nome": "AUDIOMETRIA TONAL",
+      "valor": 25,
       "cargos": 12,
       "periodicidades": [
         "A cada 6 meses"
@@ -153,6 +162,7 @@
     {
       "codigo": "0658",
       "nome": "GLICEMIA",
+      "valor": 0,
       "cargos": 2,
       "periodicidades": [
         "A cada 12 meses"
@@ -169,6 +179,7 @@
     {
       "codigo": "0300",
       "nome": "AVALIAÇÃO PSICOSSOCIAL",
+      "valor": 0,
       "cargos": 2,
       "periodicidades": [
         "A cada 12 meses"
@@ -184,6 +195,7 @@
     {
       "codigo": "0536",
       "nome": "EEG",
+      "valor": 0,
       "cargos": 2,
       "periodicidades": [
         "A cada 12 meses"

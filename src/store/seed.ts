@@ -30,7 +30,7 @@ export function buildInitialState(): PortalState {
 
   const examePrecos: Record<string, PrecoInfo> = {};
   portalRepository.getMatrizOcupacional().catalogoExames.forEach((e) => {
-    examePrecos[e.codigo] = { valor: 0, fornecedor: "", dataCotacao: "", historico: [] };
+    examePrecos[e.codigo] = { valor: e.valor, fornecedor: "", dataCotacao: "", historico: [] };
   });
 
   const fardamentoPrecos: Record<string, PrecoInfo> = {};

@@ -6,6 +6,7 @@ import { ProximosTab } from "./tabs/ProximosTab";
 import { PendenciasTab } from "./tabs/PendenciasTab";
 import { MatrizFuncaoTab } from "./tabs/MatrizFuncaoTab";
 import { MatrizOcupacionalTab } from "./tabs/MatrizOcupacionalTab";
+import { CustosExamesTab } from "./tabs/CustosExamesTab";
 import { HistoricoTab } from "./tabs/HistoricoTab";
 import { DesligadosTab } from "./tabs/DesligadosTab";
 import styles from "./ExamesPage.module.css";
@@ -16,6 +17,7 @@ const TABS: TabItem[] = [
   { key: "pendencias", label: "Pendências" },
   { key: "matriz", label: "Matriz por função" },
   { key: "matriz-ocupacional", label: "Matriz ocupacional" },
+  { key: "custos", label: "Custos & valores" },
   { key: "historico", label: "Histórico" },
   { key: "desligados", label: "Desligados" },
 ];
@@ -36,6 +38,7 @@ export function ExamesPage() {
           <Route path="pendencias" element={<PendenciasTab />} />
           <Route path="matriz" element={<MatrizFuncaoTab />} />
           <Route path="matriz-ocupacional" element={<MatrizOcupacionalTab />} />
+          <Route path="custos" element={<CustosExamesTab />} />
           <Route path="historico" element={<HistoricoTab />} />
           <Route path="desligados" element={<DesligadosTab />} />
           <Route path="*" element={<Navigate to="/exames/controle" replace />} />

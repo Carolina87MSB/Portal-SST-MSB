@@ -47,6 +47,9 @@ export interface CatalogoExameOcupacional {
   periodicidades: string[];
   situacoes: string[];
   obs: string[];
+  /** Valor unitário de referência (R$) — mesmo papel do `valor` em EpiCatalogoItem: usado como base
+   * quando ainda não há um preço editado em `state.examePrecos` para este código. */
+  valor: number;
 }
 
 export interface CatalogoEpiOcupacional {
