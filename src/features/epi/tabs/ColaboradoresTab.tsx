@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
-import { Download, UserPlus } from "lucide-react";
+import { Download } from "lucide-react";
 import { Avatar, Button, Card, EmptyState, SearchInput, Select, Table, Td, Th, THead, Tr } from "../../../components/ui";
-import { useAuth } from "../../../auth/AuthContext";
 import { usePortalStore } from "../../../store/PortalStoreContext";
 import { portalRepository } from "../../../repositories/portalRepository";
 import { deptName, iniciais, maskCpf, titleCase } from "../../../domain/text";
@@ -13,7 +12,6 @@ import shared from "../EpiShared.module.css";
 import styles from "./ColaboradoresTab.module.css";
 
 export function ColaboradoresTab() {
-  const { canEdit } = useAuth();
   const { state } = usePortalStore();
   const [search, setSearch] = useState("");
   const [depto, setDepto] = useState("");
@@ -59,12 +57,6 @@ export function ColaboradoresTab() {
     );
   }
 
-  function novoColaborador() {
-    window.alert(
-      "Cadastro manual de colaborador ainda não disponível — a base é sincronizada a partir do PeopleFlow. Esta ação será habilitada quando a integração estiver ativa.",
-    );
-  }
-
   return (
     <div className={styles.wrap}>
       <Card className={styles.toolbarCard}>
@@ -81,11 +73,6 @@ export function ColaboradoresTab() {
             <Button variant="secondary" onClick={exportar}>
               <Download size={15} /> Exportar
             </Button>
-            {canEdit ? (
-              <Button onClick={novoColaborador}>
-                <UserPlus size={15} /> Novo colaborador
-              </Button>
-            ) : null}
           </div>
         </div>
       </Card>
