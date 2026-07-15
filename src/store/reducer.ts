@@ -190,6 +190,22 @@ export function portalReducer(state: PortalState, action: PortalAction): PortalS
       };
     }
 
+    case "ATUALIZAR_DADOS_COLABORADOR": {
+      const colaboradores = state.colaboradores.map((c) =>
+        c.id === action.colabId
+          ? { ...c, cpf: action.cpf, nome: action.nome, cargo: action.cargo, departamento: action.departamento, nascimento: action.nascimento }
+          : c,
+      );
+      return {
+        ...state,
+        colaboradores,
+        log: [
+          { action: "Cadastro do colaborador atualizado", colabId: action.colabId, colabNome: titleCase(action.nome), detail: "", user: action.by, ts: stamp() },
+          ...state.log,
+        ],
+      };
+    }
+
     case "REINTEGRAR_COLABORADOR": {
       const { [action.colabId]: _removido, ...resto } = state.desligados;
       return { ...state, desligados: resto };

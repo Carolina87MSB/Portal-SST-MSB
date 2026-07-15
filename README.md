@@ -51,6 +51,12 @@ Não existe distinção de perfil neste portal — toda conta autenticada tem o 
 
 Funciona via duas Vercel Serverless Functions (`api/listar-acessos.ts`, `api/provisionar-acesso.ts`) que usam a `SUPABASE_SERVICE_ROLE_KEY` no servidor — essa chave nunca chega ao navegador. **Só funcionam em produção (Vercel) ou com `vercel dev`** — `npm run dev` (Vite puro) não executa `/api/*`, então localmente a tela mostra erro de carregamento; isso é esperado. A tela não tem opção de revogar acesso (só liberar) — para isso, use o painel do Supabase.
 
+### Editar cadastro do colaborador (aba Colaboradores, dentro de EPI)
+
+Cada linha da tabela tem um botão de editar (ícone de lápis) que abre um formulário para corrigir/completar **nome, CPF, data de nascimento, cargo e departamento**. Existe principalmente para completar o **pré-cadastro** que o Portal PeopleFlow cria automaticamente ao concluir uma movimentação de Admissão — esse fluxo não coleta CPF nem data de nascimento (são exclusivos do SST), então o colaborador aparece na lista com CPF vazio (badge "Pré-cadastro incompleto" na coluna CPF) até alguém completar por aqui.
+
+Funciona via `api/atualizar-colaborador.ts` (mesmo padrão RH-only/service_role de `api/desligar-colaborador.ts`) — RLS não libera UPDATE direto do navegador. Não mexe em `epis`/`exames` (que têm os próprios fluxos de entrega/anexo).
+
 ## Arquitetura
 
 ```

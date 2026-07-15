@@ -57,10 +57,20 @@ export class SupabaseNotConfiguredError extends Error {
 
 export type DesligarResult = { ok: true } | { ok: false; error: string };
 
+export interface DadosColaboradorEditavel {
+  cpf: string;
+  nome: string;
+  cargo: string;
+  departamento: string;
+  nascimento: string; // aaaa-mm-dd, ou "" para limpar
+}
+
 export interface ColaboradoresRepository {
   getColaboradores(): Promise<Colaborador[]>;
   /** Persiste o desligamento no Supabase via api/desligar-colaborador.ts (service_role, RLS não libera UPDATE público). */
   desligarColaborador(colabId: number, dataIso: string, motivo: string): Promise<DesligarResult>;
+  /** Completa/corrige o cadastro (cpf, nome, cargo, departamento, nascimento) via api/atualizar-colaborador.ts. */
+  atualizarColaborador(colabId: number, dados: DadosColaboradorEditavel): Promise<DesligarResult>;
 }
 
 class SupabaseColaboradoresRepository implements ColaboradoresRepository {
@@ -89,6 +99,23 @@ class SupabaseColaboradoresRepository implements ColaboradoresRepository {
     });
     const body = await res.json().catch(() => ({}));
     if (!res.ok) return { ok: false, error: body.error || "Falha ao registrar desligamento." };
+    return { ok: true };
+  }
+
+  async atualizarColaborador(colabId: number, dados: DadosColaboradorEditavel): Promise<DesligarResult> {
+    if (!supabaseConfigured) return { ok: false, error: "Supabase não configurado nesta instalação." };
+
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+    if (!token) return { ok: false, error: "Sessão expirada — faça login novamente." };
+
+    const res = await fetch("/api/atualizar-colaborador", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ colabId, ...dados }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) return { ok: false, error: body.error || "Falha ao atualizar cadastro." };
     return { ok: true };
   }
 }

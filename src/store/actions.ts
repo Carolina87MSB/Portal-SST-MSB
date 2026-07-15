@@ -44,6 +44,16 @@ export type PortalAction =
       by: string;
     }
   | { type: "DESLIGAR_COLABORADOR"; colabId: number; date: string; motivo: string; by: string }
+  | {
+      type: "ATUALIZAR_DADOS_COLABORADOR";
+      colabId: number;
+      cpf: string;
+      nome: string;
+      cargo: string;
+      departamento: string;
+      nascimento: string;
+      by: string;
+    }
   | { type: "REINTEGRAR_COLABORADOR"; colabId: number; by: string }
   | { type: "ADICIONAR_CARGO_MATRIZ"; cargo: CargoOcupacional; by: string }
   | {

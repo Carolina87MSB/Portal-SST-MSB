@@ -1,21 +1,26 @@
 import { useMemo, useState } from "react";
-import { Download } from "lucide-react";
+import { Download, Pencil } from "lucide-react";
 import { Avatar, Button, Card, EmptyState, SearchInput, Select, Table, Td, Th, THead, Tr } from "../../../components/ui";
+import { useAuth } from "../../../auth/AuthContext";
 import { usePortalStore } from "../../../store/PortalStoreContext";
+import { colaboradoresRepository } from "../../../repositories/colaboradoresRepository";
 import { portalRepository } from "../../../repositories/portalRepository";
 import { deptName, iniciais, maskCpf, titleCase } from "../../../domain/text";
 import { idadeFromISO } from "../../../domain/dates";
 import { downloadCsv } from "../../../domain/csv";
 import { divergenciaEpiPara, matchesColaboradorSearch } from "../lib/epiUtils";
 import { EpiFichaDrawer } from "../EpiFichaDrawer";
+import { EditarColaboradorModal } from "../EditarColaboradorModal";
 import shared from "../EpiShared.module.css";
 import styles from "./ColaboradoresTab.module.css";
 
 export function ColaboradoresTab() {
-  const { state } = usePortalStore();
+  const { user } = useAuth();
+  const { state, dispatch } = usePortalStore();
   const [search, setSearch] = useState("");
   const [depto, setDepto] = useState("");
   const [selectedColabId, setSelectedColabId] = useState<number | null>(null);
+  const [editandoColabId, setEditandoColabId] = useState<number | null>(null);
 
   const matrizEpi = useMemo(() => portalRepository.getMatrizEpi(), []);
 
@@ -41,6 +46,16 @@ export function ColaboradoresTab() {
         .map((c) => ({ colaborador: c, divergencia: divergenciaEpiPara(c, matrizEpi, state.entregas) })),
     [filtrados, matrizEpi, state.entregas],
   );
+
+  const colaboradorEditando = editandoColabId != null ? state.colaboradores.find((c) => c.id === editandoColabId) ?? null : null;
+
+  async function salvarEdicaoColaborador(dados: { cpf: string; nome: string; cargo: string; departamento: string; nascimento: string }) {
+    if (!user || editandoColabId == null) return { ok: false as const, error: "Sessão expirada — faça login novamente." };
+    const result = await colaboradoresRepository.atualizarColaborador(editandoColabId, dados);
+    if (!result.ok) return result;
+    dispatch({ type: "ATUALIZAR_DADOS_COLABORADOR", colabId: editandoColabId, ...dados, by: user.email });
+    return { ok: true as const };
+  }
 
   function exportar() {
     downloadCsv(
@@ -90,6 +105,7 @@ export function ColaboradoresTab() {
               <Th>Idade</Th>
               <Th>EPIs / classificação</Th>
               <Th>Ficha</Th>
+              <Th>Ações</Th>
             </THead>
             <tbody>
               {linhas.map(({ colaborador: c, divergencia }) => {
@@ -102,7 +118,13 @@ export function ColaboradoresTab() {
                         <span>{titleCase(c.nome)}</span>
                       </div>
                     </Td>
-                    <Td mono>{maskCpf(c.cpf)}</Td>
+                    <Td mono>
+                      {c.cpf ? (
+                        maskCpf(c.cpf)
+                      ) : (
+                        <span className={shared.pillWarning}>Pré-cadastro incompleto</span>
+                      )}
+                    </Td>
                     <Td>{deptName(c.departamento)}</Td>
                     <Td>{c.cargo ? titleCase(c.cargo) : "—"}</Td>
                     <Td>{idade != null ? `${idade} anos` : "—"}</Td>
@@ -125,6 +147,11 @@ export function ColaboradoresTab() {
                         Ver ficha
                       </button>
                     </Td>
+                    <Td>
+                      <button type="button" className={styles.iconButton} title="Editar cadastro" onClick={() => setEditandoColabId(c.id)}>
+                        <Pencil size={13} />
+                      </button>
+                    </Td>
                   </Tr>
                 );
               })}
@@ -139,6 +166,14 @@ export function ColaboradoresTab() {
       </div>
 
       {selectedColabId != null ? <EpiFichaDrawer colabId={selectedColabId} onClose={() => setSelectedColabId(null)} /> : null}
+
+      {colaboradorEditando ? (
+        <EditarColaboradorModal
+          colaborador={colaboradorEditando}
+          onClose={() => setEditandoColabId(null)}
+          onSave={salvarEdicaoColaborador}
+        />
+      ) : null}
     </div>
   );
 }
