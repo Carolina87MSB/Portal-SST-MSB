@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useReducer, useState } f
 import type { ReactNode } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { colaboradoresRepository } from "../repositories/colaboradoresRepository";
+import { getDesligamentosPendentes } from "../repositories/desligamentoPendenteRepository";
 import type { PortalAction } from "./actions";
 import { portalReducer } from "./reducer";
 import { buildInitialState } from "./seed";
@@ -67,6 +68,14 @@ export function PortalStoreProvider({ children }: { children: ReactNode }) {
       })
       .finally(() => {
         if (!cancelado) setColaboradoresLoading(false);
+      });
+    getDesligamentosPendentes()
+      .then((desligamentosPendentes) => {
+        if (cancelado) return;
+        dispatch({ type: "SET_DESLIGAMENTOS_PENDENTES", desligamentosPendentes });
+      })
+      .catch(() => {
+        // notificação não-crítica — se falhar, o Dashboard só fica sem o aviso desta vez.
       });
     return () => {
       cancelado = true;

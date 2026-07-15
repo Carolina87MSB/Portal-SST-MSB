@@ -5,6 +5,7 @@ import { useAuth } from "../../auth/AuthContext";
 import { usePortalStore } from "../../store/PortalStoreContext";
 import { portalRepository } from "../../repositories/portalRepository";
 import { colaboradoresRepository } from "../../repositories/colaboradoresRepository";
+import { removerDesligamentoPendente } from "../../repositories/desligamentoPendenteRepository";
 import { statusDoRegistro, toneForStatus } from "../../domain/exameStatus";
 import { deptName, fmtMoney, iniciais, maskCpf, titleCase } from "../../domain/text";
 import { idadeFromISO, isoToBR } from "../../domain/dates";
@@ -18,14 +19,17 @@ import styles from "./ExameFichaDrawer.module.css";
 interface ExameFichaDrawerProps {
   colabId: number;
   onClose: () => void;
+  /** Quando aberto a partir da notificação "Desligamento pendente" do Dashboard, já mostra
+   * a tela de confirmação de desligamento pré-preenchida com o que veio do PeopleFlow. */
+  abrirDesligarPendente?: { dataIso: string; motivo: string };
 }
 
-export function ExameFichaDrawer({ colabId, onClose }: ExameFichaDrawerProps) {
+export function ExameFichaDrawer({ colabId, onClose, abrirDesligarPendente }: ExameFichaDrawerProps) {
   const { user, canEdit } = useAuth();
   const { state, dispatch } = usePortalStore();
   const [anexarProc, setAnexarProc] = useState<string | undefined | null>(null);
   const [anexarTipo, setAnexarTipo] = useState<string | undefined>(undefined);
-  const [desligarOpen, setDesligarOpen] = useState(false);
+  const [desligarOpen, setDesligarOpen] = useState(Boolean(abrirDesligarPendente));
 
   const colaborador = state.colaboradores.find((c) => c.id === colabId);
   const desligamento = state.desligados[colabId];
@@ -76,10 +80,19 @@ export function ExameFichaDrawer({ colabId, onClose }: ExameFichaDrawerProps) {
   }
 
   async function handleDesligar(dataIso: string, motivo: string, precisaExameDemissional: boolean) {
-    if (!user) return { ok: false as const, error: "Sessão expirada — faça login novamente." };
+    if (!user || !colaborador) return { ok: false as const, error: "Sessão expirada — faça login novamente." };
     const result = await colaboradoresRepository.desligarColaborador(colabId, dataIso, motivo);
     if (!result.ok) return result;
     dispatch({ type: "DESLIGAR_COLABORADOR", colabId, date: isoToBR(dataIso), motivo, by: user.email });
+    if (abrirDesligarPendente) {
+      // Efetivação de uma solicitação vinda do PeopleFlow — encerra a pendência
+      // para não continuar aparecendo no Dashboard.
+      dispatch({ type: "REMOVER_DESLIGAMENTO_PENDENTE", colaboradorNome: colaborador.nome });
+      removerDesligamentoPendente(colaborador.nome).catch(() => {
+        // já foi removido do estado local; se o delete remoto falhar, a linha só reaparece
+        // no próximo carregamento — sem impacto no fluxo que o usuário já concluiu.
+      });
+    }
     if (precisaExameDemissional) {
       // Abre o anexo de exame já com o tipo "Demissional" pré-selecionado — o exame
       // específico (proc) continua livre, pois depende da matriz do cargo.
@@ -244,7 +257,13 @@ export function ExameFichaDrawer({ colabId, onClose }: ExameFichaDrawerProps) {
       ) : null}
 
       {desligarOpen ? (
-        <DesligarColaboradorModal colaboradorNome={titleCase(colaborador.nome)} onClose={() => setDesligarOpen(false)} onConfirm={handleDesligar} />
+        <DesligarColaboradorModal
+          colaboradorNome={titleCase(colaborador.nome)}
+          initialDataIso={abrirDesligarPendente?.dataIso}
+          initialMotivo={abrirDesligarPendente?.motivo}
+          onClose={() => setDesligarOpen(false)}
+          onConfirm={handleDesligar}
+        />
       ) : null}
     </Drawer>
   );

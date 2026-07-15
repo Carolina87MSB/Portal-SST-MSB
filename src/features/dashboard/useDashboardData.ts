@@ -224,6 +224,25 @@ export function useDashboardData() {
     const fichasAguardando = totalFichasEpi - fichasAssinadas;
     const entregasSemFicha = state.entregas.filter((e) => !e.fichaId).length;
 
+    // ---------- desligamentos pendentes (solicitados no Portal PeopleFlow) ----------
+    const colabPorNome = new Map(state.colaboradores.map((c) => [c.nome, c]));
+    const desligamentosPendentesRows = state.desligamentosPendentes.flatMap((d) => {
+      const colab = colabPorNome.get(d.colaboradorNome);
+      if (!colab) return [];
+      return [
+        {
+          colabId: colab.id,
+          nome: titleCase(d.colaboradorNome),
+          cargo: colab.cargo ? titleCase(colab.cargo) : "—",
+          departamento: deptName(colab.departamento),
+          dataDesligamento: d.dataDesligamento || "A definir",
+          dataDesligamentoIso: d.dataDesligamentoIso,
+          motivo: d.motivo,
+          solicitadoPor: d.solicitadoPor,
+        },
+      ];
+    });
+
     return {
       kpi,
       pctEmDia,
@@ -266,6 +285,7 @@ export function useDashboardData() {
         aguardando: fichasAguardando,
         semFicha: entregasSemFicha,
       },
+      desligamentosPendentesRows,
     };
   }, [state]);
 }

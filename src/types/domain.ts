@@ -185,6 +185,18 @@ export interface Desligamento {
   by: string;
 }
 
+/** Solicitação de desligamento aprovada no Portal PeopleFlow, aguardando
+ * efetivação aqui (tela "Desligar colaborador", com ASO demissional se
+ * aplicável) — ver `peopleflow_desligamento_pendente` no Supabase. */
+export interface DesligamentoPendente {
+  colaboradorNome: string;
+  dataDesligamento: string; // dd/mm/aaaa ou "" se não informada — exibição
+  dataDesligamentoIso: string; // aaaa-mm-dd ou "" — usado para pré-preencher o input type="date"
+  motivo: string;
+  solicitadoPor: string;
+  criadoEm: string;
+}
+
 export interface FardamentoEntrega {
   id: string;
   colabId: number;

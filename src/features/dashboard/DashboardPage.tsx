@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { CalendarClock, ClipboardCheck, FileSignature, ShieldCheck, TriangleAlert, Users } from "lucide-react";
+import { CalendarClock, ClipboardCheck, FileSignature, ShieldCheck, TriangleAlert, UserMinus, Users } from "lucide-react";
 import { Card, DonutChart, GroupedBarChart, KpiCard, SegmentedControl, StatusBadge, Table, Td, Th, THead, Tr } from "../../components/ui";
 import { useAuth } from "../../auth/AuthContext";
+import { ExameFichaDrawer } from "../exames/ExameFichaDrawer";
 import { useDashboardData } from "./useDashboardData";
 import styles from "./DashboardPage.module.css";
 
@@ -13,9 +14,54 @@ export function DashboardPage() {
   const data = useDashboardData();
   const [custoEpiView, setCustoEpiView] = useState<CustoView>("mes");
   const [custoFardView, setCustoFardView] = useState<CustoView>("mes");
+  const [resolvendoPendente, setResolvendoPendente] = useState<{ colabId: number; dataIso: string; motivo: string } | null>(null);
 
   return (
     <div className={styles.page}>
+      {/* desligamento pendente — solicitado no Portal PeopleFlow */}
+      {canEdit && data.desligamentosPendentesRows.length > 0 ? (
+        <Card className={[styles.sectionCard, styles.pendenteDesligamentoCard].join(" ")}>
+          <div className={styles.sectionHeader}>
+            <div>
+              <div className={styles.sectionTitle}>
+                <UserMinus size={15} style={{ marginRight: 6, verticalAlign: -2 }} />
+                Desligamento pendente
+              </div>
+              <div className={styles.sectionSubtitle}>
+                Aprovado no Portal PeopleFlow — falta efetivar aqui (anexar o ASO demissional, se aplicável, e confirmar).
+              </div>
+            </div>
+          </div>
+          <Table>
+            <THead>
+              <Th>Colaborador</Th>
+              <Th>Cargo</Th>
+              <Th>Departamento</Th>
+              <Th>Data prevista</Th>
+              <Th>Motivo</Th>
+              <Th>Solicitado por</Th>
+            </THead>
+            <tbody>
+              {data.desligamentosPendentesRows.map((row) => (
+                <Tr
+                  key={row.colabId}
+                  onClick={() => setResolvendoPendente({ colabId: row.colabId, dataIso: row.dataDesligamentoIso, motivo: row.motivo })}
+                >
+                  <Td>
+                    <strong>{row.nome}</strong>
+                  </Td>
+                  <Td>{row.cargo}</Td>
+                  <Td>{row.departamento}</Td>
+                  <Td mono>{row.dataDesligamento}</Td>
+                  <Td>{row.motivo}</Td>
+                  <Td>{row.solicitadoPor}</Td>
+                </Tr>
+              ))}
+            </tbody>
+          </Table>
+        </Card>
+      ) : null}
+
       {/* KPIs */}
       <div className={styles.kpiGrid}>
         <KpiCard icon={<Users size={18} />} value={data.kpi.colaboradores} label="Colaboradores na base" />
@@ -271,6 +317,14 @@ export function DashboardPage() {
           </div>
         )}
       </Card>
+
+      {resolvendoPendente ? (
+        <ExameFichaDrawer
+          colabId={resolvendoPendente.colabId}
+          abrirDesligarPendente={{ dataIso: resolvendoPendente.dataIso, motivo: resolvendoPendente.motivo }}
+          onClose={() => setResolvendoPendente(null)}
+        />
+      ) : null}
     </div>
   );
 }

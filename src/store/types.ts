@@ -3,6 +3,7 @@ import type {
   CargoOcupacional,
   Colaborador,
   Desligamento,
+  DesligamentoPendente,
   EntregaEpi,
   FardamentoEntrega,
   FardamentoReparo,
@@ -38,6 +39,7 @@ export interface PortalState {
   fichasEpi: FichaEntregaEpi[];
   attachments: AttachmentExame[];
   desligados: Record<number, Desligamento>;
+  desligamentosPendentes: DesligamentoPendente[];
   epiPrecos: Record<string, PrecoInfo>;
   examePrecos: Record<string, PrecoInfo>;
   fardamentoPrecos: Record<string, PrecoInfo>;

@@ -6,14 +6,17 @@ import { LabeledField, TextInput } from "../../components/ui/Field";
 interface DesligarColaboradorModalProps {
   colaboradorNome: string;
   onClose: () => void;
+  /** Pré-preenche data/motivo quando a solicitação já veio do Portal PeopleFlow (ver desligamentosPendentes). */
+  initialDataIso?: string;
+  initialMotivo?: string;
   /** precisaExameDemissional: resposta "Sim" à pergunta dos 90 dias — quem chama decide o que fazer com isso (ex.: abrir o anexo de exame demissional). */
   onConfirm: (dataIso: string, motivo: string, precisaExameDemissional: boolean) => Promise<{ ok: true } | { ok: false; error: string }>;
 }
 
 /** Confirmação de desligamento — a partir deste ponto o colaborador some das listas ativas do portal. */
-export function DesligarColaboradorModal({ colaboradorNome, onClose, onConfirm }: DesligarColaboradorModalProps) {
-  const [dataIso, setDataIso] = useState("");
-  const [motivo, setMotivo] = useState("");
+export function DesligarColaboradorModal({ colaboradorNome, onClose, initialDataIso, initialMotivo, onConfirm }: DesligarColaboradorModalProps) {
+  const [dataIso, setDataIso] = useState(initialDataIso ?? "");
+  const [motivo, setMotivo] = useState(initialMotivo ?? "");
   const [mais90Dias, setMais90Dias] = useState<"sim" | "nao" | null>(null);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -53,6 +56,13 @@ export function DesligarColaboradorModal({ colaboradorNome, onClose, onConfirm }
         Ao confirmar, este colaborador deixa de aparecer nas listas ativas de exames em todo o portal e passa a constar apenas na aba
         Desligados, com seu histórico preservado. Também passa a aparecer no Portal PeopleFlow, na aba Desligados.
       </div>
+
+      {initialMotivo ? (
+        <div style={{ fontSize: 12, color: "var(--color-navy)", background: "var(--color-brand-pale)", borderRadius: 10, padding: "9px 12px" }}>
+          Data e motivo pré-preenchidos a partir da movimentação de desligamento aprovada no Portal PeopleFlow — revise antes de confirmar.
+        </div>
+      ) : null}
+
       <LabeledField label="Data de desligamento">
         <TextInput type="date" value={dataIso} onChange={(e) => setDataIso(e.target.value)} />
       </LabeledField>

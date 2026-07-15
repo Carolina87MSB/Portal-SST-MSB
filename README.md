@@ -57,6 +57,14 @@ Cada linha da tabela tem um botão de editar (ícone de lápis) que abre um form
 
 Funciona via `api/atualizar-colaborador.ts` (mesmo padrão RH-only/service_role de `api/desligar-colaborador.ts`) — RLS não libera UPDATE direto do navegador. Não mexe em `epis`/`exames` (que têm os próprios fluxos de entrega/anexo).
 
+### Desligamento pendente (Dashboard)
+
+Quando uma movimentação de Desligamento é aprovada no **Portal PeopleFlow**, ela não desliga ninguém diretamente — só registra a solicitação numa tabela compartilhada (`peopleflow_desligamento_pendente`: nome, data prevista, motivo, quem aprovou). O Dashboard do SST lê essa tabela e mostra um card **"Desligamento pendente"** no topo (só para quem tem `canEdit`) sempre que houver alguma.
+
+Clicar num item do card abre a ficha do colaborador (`ExameFichaDrawer`) já com a tela **"Desligar colaborador"** aberta e pré-preenchida com a data e o motivo vindos do PeopleFlow — o RH só revisa, decide se precisa anexar o ASO demissional (pergunta "possui mais de 90 dias?", fluxo que já existia) e confirma. Só nesse momento `colaboradores.desligado` é gravado de verdade (via `api/desligar-colaborador.ts`, como já funcionava) — e a linha em `peopleflow_desligamento_pendente` é apagada (`src/repositories/desligamentoPendenteRepository.ts`), some do card e o colaborador passa a constar em Desligados nos dois portais.
+
+Se a leitura de `peopleflow_desligamento_pendente` falhar por qualquer motivo, o Dashboard simplesmente não mostra o card — não bloqueia o resto da página.
+
 ## Arquitetura
 
 ```

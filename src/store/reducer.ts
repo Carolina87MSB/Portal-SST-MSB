@@ -31,6 +31,15 @@ export function portalReducer(state: PortalState, action: PortalAction): PortalS
       return { ...state, colaboradores: action.colaboradores, desligados };
     }
 
+    case "SET_DESLIGAMENTOS_PENDENTES":
+      return { ...state, desligamentosPendentes: action.desligamentosPendentes };
+
+    case "REMOVER_DESLIGAMENTO_PENDENTE":
+      return {
+        ...state,
+        desligamentosPendentes: state.desligamentosPendentes.filter((d) => d.colaboradorNome !== action.colaboradorNome),
+      };
+
     case "REGISTRAR_ENTREGA_EPI": {
       const nome = nomeDoColab(state, action.colabId);
       const colab = state.colaboradores.find((c) => c.id === action.colabId);
