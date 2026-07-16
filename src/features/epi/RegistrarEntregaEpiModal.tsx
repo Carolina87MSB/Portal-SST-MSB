@@ -26,7 +26,7 @@ interface RegistrarEntregaEpiModalProps {
   /** Quando informado, o modal abre em modo de edição, pré-preenchido com os dados desta entrega. */
   entregaParaEditar?: EntregaEpi;
   onClose: () => void;
-  onSave: (payload: RegistrarEntregaEpiPayload) => void;
+  onSave: (payload: RegistrarEntregaEpiPayload) => Promise<{ ok: true } | { ok: false; error: string }>;
 }
 
 /** Modal de registro (ou edição) de entrega de EPI a partir da ficha do colaborador. */
@@ -53,6 +53,8 @@ export function RegistrarEntregaEpiModal({
   const [dataEntregaIso, setDataEntregaIso] = useState(entregaParaEditar ? brToIso(entregaParaEditar.dataEntrega) : "");
   const [dataTrocaIso, setDataTrocaIso] = useState(entregaParaEditar ? brToIso(entregaParaEditar.dataTroca) : "");
   const [obs, setObs] = useState(entregaParaEditar?.obs ?? "");
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
 
   const epiFinal = epiSelecionado === OUTRO_VALUE ? epiCustom.trim() : epiSelecionado;
 
@@ -73,11 +75,13 @@ export function RegistrarEntregaEpiModal({
 
   const qtdNumerica = Number(qtd) || 0;
   const valorNumerico = Number(String(valorUnit).replace(",", ".")) || 0;
-  const canSubmit = epiFinal.length > 0 && qtdNumerica > 0 && dataEntregaIso.length > 0;
+  const canSubmit = epiFinal.length > 0 && qtdNumerica > 0 && dataEntregaIso.length > 0 && !enviando;
 
-  function handleSubmit() {
+  async function handleSubmit() {
     if (!canSubmit) return;
-    onSave({
+    setEnviando(true);
+    setErro(null);
+    const result = await onSave({
       epi: epiFinal,
       qtd: qtdNumerica,
       ca: ca.trim(),
@@ -87,6 +91,11 @@ export function RegistrarEntregaEpiModal({
       dataTroca: dataTrocaIso ? isoToBR(dataTrocaIso) : "—",
       obs: obs.trim(),
     });
+    setEnviando(false);
+    if (!result.ok) {
+      setErro(result.error);
+      return;
+    }
     onClose();
   }
 
@@ -97,11 +106,11 @@ export function RegistrarEntregaEpiModal({
       onClose={onClose}
       footer={
         <>
-          <Button variant="ghost" onClick={onClose}>
+          <Button variant="ghost" onClick={onClose} disabled={enviando}>
             Cancelar
           </Button>
           <Button disabled={!canSubmit} onClick={handleSubmit}>
-            {editando ? "Salvar alterações" : "Registrar entrega"}
+            {enviando ? "Salvando..." : editando ? "Salvar alterações" : "Registrar entrega"}
           </Button>
         </>
       }
@@ -153,6 +162,8 @@ export function RegistrarEntregaEpiModal({
       <LabeledField label="Observações">
         <TextInput value={obs} onChange={(e) => setObs(e.target.value)} placeholder="Opcional" />
       </LabeledField>
+
+      {erro && <div style={{ marginTop: 10, fontSize: 12, fontWeight: 600, color: "var(--color-danger, #99413a)" }}>{erro}</div>}
     </Modal>
   );
 }

@@ -38,7 +38,7 @@ Sem um `.env.local` preenchido, o app sobe normalmente mas mostra a tela de logi
 1. Importe o repositório `Carolina87MSB/Portal-SST-MSB` na Vercel (framework detectado automaticamente: Vite).
 2. Em _Settings → Environment Variables_, adicione:
    - `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY` (os mesmos valores do `.env.local`). **Atenção ao prefixo**: como o projeto é Vite (não Next.js), as variáveis precisam começar com `VITE_` — `NEXT_PUBLIC_...` não é lido pelo app e o build fica com o Supabase "não configurado" mesmo depois do deploy.
-   - `SUPABASE_SERVICE_ROLE_KEY` — **sem** prefixo `VITE_` (fica só no servidor, nunca chega ao navegador). Antes só era usada localmente por `npm run seed:supabase`; agora também é usada pelas Vercel Serverless Functions em `api/*.ts` (desligamento e controle de acessos) — a RLS da tabela `colaboradores` continua sem liberar UPDATE para a API pública, só essas functions, rodando no servidor, conseguem escrever.
+   - `SUPABASE_SERVICE_ROLE_KEY` — **sem** prefixo `VITE_` (fica só no servidor, nunca chega ao navegador). Antes só era usada localmente por `npm run seed:supabase`; agora também é usada pelas Vercel Serverless Functions em `api/*.ts` (desligamento, controle de acessos e o patch de status de exame em `api/atualizar-exame.ts`) — a RLS da tabela `colaboradores` continua sem liberar UPDATE para a API pública, só essas functions, rodando no servidor, conseguem escrever.
 3. Depois do primeiro deploy, volte em Supabase → _Authentication → URL Configuration_ e adicione a URL da Vercel como redirect permitido do magic link.
 
 ## Acesso
@@ -64,6 +64,16 @@ Quando uma movimentação de Desligamento é aprovada no **Portal PeopleFlow**, 
 Clicar num item do card abre a ficha do colaborador (`ExameFichaDrawer`) já com a tela **"Desligar colaborador"** aberta e pré-preenchida com a data e o motivo vindos do PeopleFlow — o RH só revisa, decide se precisa anexar o ASO demissional (pergunta "possui mais de 90 dias?", fluxo que já existia) e confirma. Só nesse momento `colaboradores.desligado` é gravado de verdade (via `api/desligar-colaborador.ts`, como já funcionava) — e a linha em `peopleflow_desligamento_pendente` é apagada (`src/repositories/desligamentoPendenteRepository.ts`), some do card e o colaborador passa a constar em Desligados nos dois portais.
 
 Se a leitura de `peopleflow_desligamento_pendente` falhar por qualquer motivo, o Dashboard simplesmente não mostra o card — não bloqueia o resto da página.
+
+### Anexos com Storage real (exames ASO e fichas de EPI assinadas)
+
+Antes, todo anexo (exame ocupacional, ficha de EPI assinada) virava base64 e ficava só no `localStorage` do navegador — nunca saía dali, sem backup, sem visibilidade entre RH/dispositivos. As entregas e fichas de EPI em si também eram só locais (nunca existiram no Supabase). Isso mudou: agora tudo é persistido de verdade —
+
+- **Bucket de Storage** `anexos-sst` (privado — arquivos só acessíveis via signed URL de 10 min, geradas sob demanda ao clicar em "Ver anexo"/"Ver ficha assinada"; nunca uma URL pública fixa).
+- **`sst_anexos_exames`** — log de cada exame ASO anexado (`src/repositories/anexosExamesRepository.ts`). O status atual do exame (`colaboradores.exames`) continua sendo patchado via `api/atualizar-exame.ts` (service_role — RLS não libera UPDATE em `colaboradores` pela API pública).
+- **`sst_entregas_epi`** / **`sst_fichas_epi`** — entregas de EPI e as fichas (PDF + via assinada) que as agrupam (`src/repositories/fichasEpiRepository.ts`).
+
+As 3 tabelas novas têm RLS permissiva para `authenticated` (mesma regra de acesso que já existia: qualquer conta do portal é RH, não há distinção de perfil aqui) — ver os `create policy ... for all to authenticated` no fim de `supabase/schema.sql`. Rode o schema atualizado no Supabase Dashboard (idempotente, pode rodar de novo com segurança) antes de usar essas telas em produção; sem isso, os uploads falham com erro visível na tela (não silenciosamente).
 
 ## Arquitetura
 

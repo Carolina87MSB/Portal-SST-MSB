@@ -19,8 +19,7 @@ export interface AnexarExamePayload {
   proximo: string; // dd/mm/aaaa
   fornecedor: string;
   valor: number;
-  fileName: string;
-  fileDataUrl?: string;
+  file: File | null;
 }
 
 interface AnexarExameModalProps {
@@ -34,7 +33,7 @@ interface AnexarExameModalProps {
   /** Tipo de ASO pré-selecionado (ex.: "Demissional" ao vir do fluxo de desligamento) — o exame específico continua livre para escolha. */
   initialTipo?: string;
   onClose: () => void;
-  onSave: (payload: AnexarExamePayload) => void;
+  onSave: (payload: AnexarExamePayload) => Promise<{ ok: true } | { ok: false; error: string }>;
 }
 
 /** Modal de lançamento de realização de exame ocupacional — usado a partir do Controle de ASO,
@@ -60,8 +59,9 @@ export function AnexarExameModal({
   const [proximoTouched, setProximoTouched] = useState(false);
   const [fornecedor, setFornecedor] = useState("");
   const [valorInput, setValorInput] = useState("");
-  const [fileName, setFileName] = useState("");
-  const [fileDataUrl, setFileDataUrl] = useState<string | undefined>(undefined);
+  const [file, setFile] = useState<File | null>(null);
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
 
   const selectedColab = useMemo(() => colaboradores.find((c) => c.id === colabId) ?? null, [colaboradores, colabId]);
 
@@ -110,34 +110,32 @@ export function AnexarExameModal({
     setProximoBR(addMonthsBR(isoToBR(dataRealizadaIso), selectedEntry.periodicidadeMeses));
   }, [dataRealizadaIso, selectedEntry, proximoTouched]);
 
-  const canSubmit = colabId != null && !!selectedEntry && dataRealizadaIso.length > 0 && proximoBR.trim().length > 0 && proximoBR !== "—";
+  const canSubmit =
+    colabId != null && !!selectedEntry && dataRealizadaIso.length > 0 && proximoBR.trim().length > 0 && proximoBR !== "—" && !enviando;
 
-  function handleSubmit() {
+  async function handleSubmit() {
     if (!canSubmit || !selectedEntry || colabId == null) return;
-    onSave({
+    setEnviando(true);
+    setErro(null);
+    const result = await onSave({
       colabId,
       proc: selectedEntry.procStr,
       dataISO: isoToBR(dataRealizadaIso),
       proximo: proximoBR.trim(),
       fornecedor: fornecedor.trim(),
       valor: Number(String(valorInput).replace(",", ".")) || 0,
-      fileName,
-      fileDataUrl,
+      file,
     });
+    setEnviando(false);
+    if (!result.ok) {
+      setErro(result.error);
+      return;
+    }
     onClose();
   }
 
   function handleFileChange(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) {
-      setFileName("");
-      setFileDataUrl(undefined);
-      return;
-    }
-    setFileName(file.name);
-    const reader = new FileReader();
-    reader.onload = () => setFileDataUrl(typeof reader.result === "string" ? reader.result : undefined);
-    reader.readAsDataURL(file);
+    setFile(e.target.files?.[0] ?? null);
   }
 
   return (
@@ -148,11 +146,11 @@ export function AnexarExameModal({
       width={560}
       footer={
         <>
-          <Button variant="ghost" onClick={onClose}>
+          <Button variant="ghost" onClick={onClose} disabled={enviando}>
             Cancelar
           </Button>
           <Button disabled={!canSubmit} onClick={handleSubmit}>
-            Anexar exame
+            {enviando ? "Enviando..." : "Anexar exame"}
           </Button>
         </>
       }
@@ -222,9 +220,11 @@ export function AnexarExameModal({
         </LabeledField>
       </div>
 
-      <LabeledField label="Arquivo / comprovante (opcional)" hint={fileName ? `Selecionado: ${fileName}` : undefined}>
-        <input type="file" onChange={handleFileChange} />
+      <LabeledField label="Arquivo / comprovante (opcional)" hint={file ? `Selecionado: ${file.name}` : undefined}>
+        <input type="file" onChange={handleFileChange} disabled={enviando} />
       </LabeledField>
+
+      {erro && <div style={{ marginTop: 10, fontSize: 12, fontWeight: 600, color: "var(--color-danger, #99413a)" }}>{erro}</div>}
     </Modal>
   );
 }

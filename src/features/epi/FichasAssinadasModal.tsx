@@ -1,8 +1,10 @@
+import { useState } from "react";
 import { FileDown, FileText } from "lucide-react";
 import { Modal } from "../../components/ui/Modal";
 import { EmptyState } from "../../components/ui/EmptyState";
 import { baixarFichaEntregaEpiPdf } from "../../domain/pdf/fichaEntregaEpi";
 import { codigoFichaEpi } from "../../domain/fichaAssinatura";
+import { getFichaSignedUrl } from "../../repositories/fichasEpiRepository";
 import type { Colaborador, EntregaEpi, FichaEntregaEpi } from "../../types/domain";
 import styles from "./FichasAssinadasModal.module.css";
 
@@ -17,6 +19,17 @@ interface FichasAssinadasModalProps {
 /** Histórico só das fichas de entrega de EPI já assinadas deste colaborador. */
 export function FichasAssinadasModal({ colaboradorNome, colaborador, fichas, entregas, onClose }: FichasAssinadasModalProps) {
   const fichasOrdenadas = fichas.slice().sort((a, b) => (b.assinaturaAnexadaEm ?? "").localeCompare(a.assinaturaAnexadaEm ?? ""));
+  const [abrindoPath, setAbrindoPath] = useState<string | null>(null);
+
+  async function handleVerAssinada(storagePath: string) {
+    if (abrindoPath) return;
+    const janela = window.open("", "_blank", "noopener,noreferrer");
+    setAbrindoPath(storagePath);
+    const url = await getFichaSignedUrl(storagePath);
+    setAbrindoPath(null);
+    if (url && janela) janela.location.href = url;
+    else janela?.close();
+  }
 
   return (
     <Modal title="Fichas de EPI assinadas" subtitle={colaboradorNome} onClose={onClose} width={560}>
@@ -43,16 +56,15 @@ export function FichasAssinadasModal({ colaboradorNome, colaborador, fichas, ent
                   >
                     <FileDown size={12} /> Ver ficha (PDF)
                   </button>
-                  {ficha.assinaturaDataUrl ? (
-                    <a
-                      href={ficha.assinaturaDataUrl}
-                      download={ficha.assinaturaFileName || undefined}
-                      target="_blank"
-                      rel="noreferrer"
+                  {ficha.assinaturaStoragePath ? (
+                    <button
+                      type="button"
                       className={styles.viewLink}
+                      disabled={abrindoPath === ficha.assinaturaStoragePath}
+                      onClick={() => handleVerAssinada(ficha.assinaturaStoragePath!)}
                     >
                       <FileText size={12} /> Ver ficha assinada
-                    </a>
+                    </button>
                   ) : null}
                 </div>
               </div>

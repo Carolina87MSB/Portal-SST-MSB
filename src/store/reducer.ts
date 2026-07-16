@@ -40,30 +40,22 @@ export function portalReducer(state: PortalState, action: PortalAction): PortalS
         desligamentosPendentes: state.desligamentosPendentes.filter((d) => d.colaboradorNome !== action.colaboradorNome),
       };
 
+    case "SET_ENTREGAS_EPI":
+      return { ...state, entregas: action.entregas };
+
+    case "SET_FICHAS_EPI":
+      return { ...state, fichasEpi: action.fichasEpi };
+
+    case "SET_ANEXOS_EXAMES":
+      return { ...state, attachments: action.attachments };
+
     case "REGISTRAR_ENTREGA_EPI": {
-      const nome = nomeDoColab(state, action.colabId);
-      const colab = state.colaboradores.find((c) => c.id === action.colabId);
-      const entrega = {
-        id: uid("E"),
-        colabId: action.colabId,
-        cpf: colab?.cpf ?? "",
-        epi: action.epi,
-        qtd: action.qtd,
-        ca: action.ca,
-        fornecedor: action.fornecedor,
-        valorUnit: action.valorUnit,
-        dataEntrega: action.dataEntrega,
-        dataTroca: action.dataTroca,
-        obs: action.obs,
-        responsavel: action.by,
-        assinatura: nome,
-        ts: stamp(),
-      };
+      const nome = nomeDoColab(state, action.entrega.colabId);
       return {
         ...state,
-        entregas: [entrega, ...state.entregas],
+        entregas: [action.entrega, ...state.entregas],
         log: [
-          { action: "Entrega de EPI", colabId: action.colabId, colabNome: nome, detail: action.epi, user: action.by, ts: stamp() },
+          { action: "Entrega de EPI", colabId: action.entrega.colabId, colabNome: nome, detail: action.entrega.epi, user: action.by, ts: stamp() },
           ...state.log,
         ],
       };
@@ -154,34 +146,24 @@ export function portalReducer(state: PortalState, action: PortalAction): PortalS
     }
 
     case "ANEXAR_EXAME": {
-      const nome = nomeDoColab(state, action.colabId);
+      const nome = nomeDoColab(state, action.anexo.colabId);
       const colaboradores = state.colaboradores.map((c) => {
-        if (c.id !== action.colabId) return c;
-        const exames = c.exames.some((e) => e.proc === action.proc)
+        if (c.id !== action.anexo.colabId) return c;
+        const exames = c.exames.some((e) => e.proc === action.anexo.proc)
           ? c.exames.map((e) =>
-              e.proc === action.proc ? { ...e, ultimo: action.dataISO, proximo: action.proximo, status: "Em dia" as const } : e,
+              e.proc === action.anexo.proc
+                ? { ...e, ultimo: action.anexo.dataISO, proximo: action.proximo, status: "Em dia" as const }
+                : e,
             )
-          : [...c.exames, { proc: action.proc, ultimo: action.dataISO, proximo: action.proximo, status: "Em dia" as const }];
+          : [...c.exames, { proc: action.anexo.proc, ultimo: action.anexo.dataISO, proximo: action.proximo, status: "Em dia" as const }];
         return { ...c, exames };
       });
-      const attachment = {
-        id: uid("A"),
-        colabId: action.colabId,
-        proc: action.proc,
-        dataISO: action.dataISO,
-        fornecedor: action.fornecedor,
-        valor: action.valor,
-        fileName: action.fileName,
-        fileDataUrl: action.fileDataUrl,
-        ts: stamp(),
-        responsavel: action.by,
-      };
       return {
         ...state,
         colaboradores,
-        attachments: [attachment, ...state.attachments],
+        attachments: [action.anexo, ...state.attachments],
         log: [
-          { action: "Exame anexado", colabId: action.colabId, colabNome: nome, detail: action.proc, user: action.by, ts: stamp() },
+          { action: "Exame anexado", colabId: action.anexo.colabId, colabNome: nome, detail: action.anexo.proc, user: action.by, ts: stamp() },
           ...state.log,
         ],
       };
@@ -325,8 +307,9 @@ export function portalReducer(state: PortalState, action: PortalAction): PortalS
       if (idsValidos.size === 0) return state;
       const ficha = {
         id: action.fichaId,
-        // sequencial global (nunca reaproveitado, mesmo que uma ficha antiga seja removida no futuro).
-        numero: state.fichasEpi.length + 1,
+        // sequencial global (nunca reaproveitado, mesmo que uma ficha antiga seja removida no futuro) —
+        // calculado pelo chamador (mesmo valor já gravado no Supabase por gerarFichaEpi()).
+        numero: action.numero,
         colabId: action.colabId,
         entregaIds: [...idsValidos],
         geradaEm: stamp(),
@@ -360,7 +343,7 @@ export function portalReducer(state: PortalState, action: PortalAction): PortalS
             ? {
                 ...f,
                 assinaturaFileName: action.fileName,
-                assinaturaDataUrl: action.fileDataUrl,
+                assinaturaStoragePath: action.storagePath,
                 assinaturaMime: action.mime,
                 assinaturaAnexadaEm: stamp(),
                 assinaturaResponsavel: action.by,

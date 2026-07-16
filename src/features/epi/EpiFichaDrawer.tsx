@@ -5,7 +5,7 @@ import { useAuth } from "../../auth/AuthContext";
 import { usePortalStore } from "../../store/PortalStoreContext";
 import { portalRepository } from "../../repositories/portalRepository";
 import { deptName, fmtMoney, iniciais, maskCpf, titleCase } from "../../domain/text";
-import { idadeFromISO, isoToBR, stamp } from "../../domain/dates";
+import { idadeFromISO, isoToBR } from "../../domain/dates";
 import { matrizEpiParaColaborador } from "../../domain/matriz";
 import { baixarFichaEntregaEpiPdf } from "../../domain/pdf/fichaEntregaEpi";
 import { codigoFichaEpi, statusFichaEpi } from "../../domain/fichaAssinatura";
@@ -16,6 +16,13 @@ import { ExcluirEntregaEpiModal } from "./ExcluirEntregaEpiModal";
 import { FichaEpiControls } from "./FichaEpiControls";
 import { FichasAssinadasModal } from "./FichasAssinadasModal";
 import { uid } from "../../store/seed";
+import {
+  anexarAssinaturaFicha,
+  editarEntregaEpi,
+  excluirEntregaEpi,
+  gerarFichaEpi,
+  registrarEntregaEpi,
+} from "../../repositories/fichasEpiRepository";
 import type { EntregaEpi } from "../../types/domain";
 import styles from "./EpiFichaDrawer.module.css";
 
@@ -31,6 +38,7 @@ export function EpiFichaDrawer({ colabId, onClose }: EpiFichaDrawerProps) {
   const [entregaEmEdicao, setEntregaEmEdicao] = useState<EntregaEpi | null>(null);
   const [entregaParaExcluir, setEntregaParaExcluir] = useState<EntregaEpi | null>(null);
   const [showFichasAssinadas, setShowFichasAssinadas] = useState(false);
+  const [erroFicha, setErroFicha] = useState<string | null>(null);
 
   const colaborador = state.colaboradores.find((c) => c.id === colabId);
   const matrizEpi = useMemo(() => portalRepository.getMatrizEpi(), []);
@@ -70,11 +78,11 @@ export function EpiFichaDrawer({ colabId, onClose }: EpiFichaDrawerProps) {
   const divergencia = divergenciaEpiPara(colaborador, matrizEpi, state.entregas);
   const idade = idadeFromISO(colaborador.nascimento);
 
-  function handleRegistrarEntrega(payload: RegistrarEntregaEpiPayload) {
-    if (!user) return;
-    dispatch({
-      type: "REGISTRAR_ENTREGA_EPI",
+  async function handleRegistrarEntrega(payload: RegistrarEntregaEpiPayload) {
+    if (!user || !colaborador) return { ok: false as const, error: "Sessão expirada — faça login novamente." };
+    const result = await registrarEntregaEpi({
       colabId,
+      cpf: colaborador.cpf,
       epi: payload.epi,
       qtd: payload.qtd,
       ca: payload.ca,
@@ -83,12 +91,18 @@ export function EpiFichaDrawer({ colabId, onClose }: EpiFichaDrawerProps) {
       dataEntrega: payload.dataEntrega,
       dataTroca: payload.dataTroca,
       obs: payload.obs,
-      by: user.email,
+      responsavel: user.email,
+      assinatura: titleCase(colaborador.nome),
     });
+    if (!result.ok) return result;
+    dispatch({ type: "REGISTRAR_ENTREGA_EPI", entrega: result.entrega, by: user.email });
+    return { ok: true as const };
   }
 
-  function handleEditarEntrega(entregaId: string, payload: RegistrarEntregaEpiPayload) {
-    if (!user) return;
+  async function handleEditarEntrega(entregaId: string, payload: RegistrarEntregaEpiPayload) {
+    if (!user) return { ok: false as const, error: "Sessão expirada — faça login novamente." };
+    const result = await editarEntregaEpi(entregaId, payload);
+    if (!result.ok) return result;
     dispatch({
       type: "EDITAR_ENTREGA_EPI",
       entregaId,
@@ -102,34 +116,42 @@ export function EpiFichaDrawer({ colabId, onClose }: EpiFichaDrawerProps) {
       obs: payload.obs,
       by: user.email,
     });
+    return { ok: true as const };
   }
 
-  function handleExcluirEntrega(entregaId: string) {
-    if (!user) return;
+  async function handleExcluirEntrega(entregaId: string) {
+    if (!user) return { ok: false as const, error: "Sessão expirada — faça login novamente." };
+    const result = await excluirEntregaEpi(entregaId);
+    if (!result.ok) return result;
     dispatch({ type: "EXCLUIR_ENTREGA_EPI", entregaId, by: user.email });
+    return { ok: true as const };
   }
 
-  function handleGerarFicha() {
+  async function handleGerarFicha() {
     if (!user || !colaborador || entregasAbertas.length === 0) return;
+    setErroFicha(null);
     const fichaId = uid("F");
-    const geradaEm = stamp();
-    // mesmo cálculo sequencial que o reducer faz para GERAR_FICHA_EPI — seguro porque
-    // ambos partem do state atual, dentro do mesmo clique síncrono.
+    // mesmo cálculo sequencial que o reducer usa — seguro porque parte do
+    // state atual, dentro do mesmo clique síncrono (concorrência entre RH
+    // diferentes gerando fichas ao mesmo tempo é um risco aceito, mesmo do
+    // esquema anterior 100% local).
     const numero = state.fichasEpi.length + 1;
-    // gera o PDF com o lote exatamente como está agora, antes de "fechar" o lote no estado.
-    baixarFichaEntregaEpiPdf(entregasAbertas, colaborador, { id: fichaId, numero, geradaEm, geradaPor: user.email });
-    dispatch({
-      type: "GERAR_FICHA_EPI",
-      fichaId,
-      colabId,
-      entregaIds: entregasAbertas.map((e) => e.id),
-      by: user.email,
-    });
+    const entregaIds = entregasAbertas.map((e) => e.id);
+    const result = await gerarFichaEpi({ fichaId, colabId, numero, entregaIds, geradaPor: user.email });
+    if (!result.ok) {
+      setErroFicha(result.error);
+      return;
+    }
+    baixarFichaEntregaEpiPdf(entregasAbertas, colaborador, { id: fichaId, numero, geradaEm: result.geradaEm, geradaPor: user.email });
+    dispatch({ type: "GERAR_FICHA_EPI", fichaId, numero, colabId, entregaIds, by: user.email });
   }
 
-  function handleAnexarAssinatura(fichaId: string, fileName: string, fileDataUrl: string, mime: string) {
-    if (!user) return;
-    dispatch({ type: "ANEXAR_FICHA_EPI_ASSINADA", fichaId, fileName, fileDataUrl, mime, by: user.email });
+  async function handleAnexarAssinatura(fichaId: string, file: File) {
+    if (!user) return { ok: false as const, error: "Sessão expirada — faça login novamente." };
+    const result = await anexarAssinaturaFicha(fichaId, file, user.email);
+    if (!result.ok) return result;
+    dispatch({ type: "ANEXAR_FICHA_EPI_ASSINADA", fichaId, fileName: file.name, storagePath: result.storagePath, mime: file.type, by: user.email });
+    return { ok: true as const };
   }
 
   function renderEntregaCard(e: EntregaEpi, editable: boolean) {
@@ -246,9 +268,14 @@ export function EpiFichaDrawer({ colabId, onClose }: EpiFichaDrawerProps) {
               </div>
               {entregasAbertas.map((e) => renderEntregaCard(e, canEdit))}
               {canEdit ? (
-                <Button onClick={handleGerarFicha} className={styles.gerarFichaButton}>
-                  <FileDown size={15} /> Gerar ficha (PDF) — {entregasAbertas.length} item{entregasAbertas.length > 1 ? "s" : ""}
-                </Button>
+                <>
+                  <Button onClick={handleGerarFicha} className={styles.gerarFichaButton}>
+                    <FileDown size={15} /> Gerar ficha (PDF) — {entregasAbertas.length} item{entregasAbertas.length > 1 ? "s" : ""}
+                  </Button>
+                  {erroFicha ? (
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "var(--color-danger, #99413a)", marginTop: 6 }}>{erroFicha}</div>
+                  ) : null}
+                </>
               ) : null}
             </div>
           ) : null}
@@ -267,7 +294,7 @@ export function EpiFichaDrawer({ colabId, onClose }: EpiFichaDrawerProps) {
                     entregas={entregasDaFicha}
                     colaborador={colaborador}
                     canEdit={canEdit}
-                    onAnexarAssinatura={(fileName, fileDataUrl, mime) => handleAnexarAssinatura(ficha.id, fileName, fileDataUrl, mime)}
+                    onAnexarAssinatura={(file) => handleAnexarAssinatura(ficha.id, file)}
                   />
                 </div>
               </div>

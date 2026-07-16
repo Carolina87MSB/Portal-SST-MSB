@@ -1,22 +1,25 @@
-import type { CargoOcupacional, Colaborador, DesligamentoPendente } from "../types/domain";
+import type {
+  AttachmentExame,
+  CargoOcupacional,
+  Colaborador,
+  DesligamentoPendente,
+  EntregaEpi,
+  FichaEntregaEpi,
+} from "../types/domain";
 
 export type PortalAction =
   | { type: "SET_COLABORADORES"; colaboradores: Colaborador[] }
   | { type: "SET_DESLIGAMENTOS_PENDENTES"; desligamentosPendentes: DesligamentoPendente[] }
   | { type: "REMOVER_DESLIGAMENTO_PENDENTE"; colaboradorNome: string }
-  | {
-      type: "REGISTRAR_ENTREGA_EPI";
-      colabId: number;
-      epi: string;
-      qtd: number;
-      ca: string;
-      fornecedor: string;
-      valorUnit: number;
-      dataEntrega: string;
-      dataTroca: string;
-      obs: string;
-      by: string;
-    }
+  // Entregas/fichas de EPI e anexos de exame agora são carregados do Supabase
+  // (ver anexosExamesRepository.ts / fichasEpiRepository.ts) assim que a
+  // sessão é confirmada — mesmo padrão de SET_COLABORADORES.
+  | { type: "SET_ENTREGAS_EPI"; entregas: EntregaEpi[] }
+  | { type: "SET_FICHAS_EPI"; fichasEpi: FichaEntregaEpi[] }
+  | { type: "SET_ANEXOS_EXAMES"; attachments: AttachmentExame[] }
+  // `entrega` já vem persistida (ver fichasEpiRepository.registrarEntregaEpi) — o
+  // reducer só precisa somar ao estado local e registrar no log.
+  | { type: "REGISTRAR_ENTREGA_EPI"; entrega: EntregaEpi; by: string }
   | {
       type: "EDITAR_ENTREGA_EPI";
       entregaId: string;
@@ -33,18 +36,11 @@ export type PortalAction =
   | { type: "EXCLUIR_ENTREGA_EPI"; entregaId: string; by: string }
   | { type: "EDITAR_PRECO_EPI"; equip: string; valor: number; fornecedor: string; dataCotacao: string; by: string }
   | { type: "EDITAR_PRECO_EXAME"; codigo: string; valor: number; fornecedor: string; dataCotacao: string; by: string }
-  | {
-      type: "ANEXAR_EXAME";
-      colabId: number;
-      proc: string;
-      dataISO: string;
-      proximo: string;
-      fornecedor: string;
-      valor: number;
-      fileName: string;
-      fileDataUrl?: string;
-      by: string;
-    }
+  // `anexo` já vem persistido (ver anexosExamesRepository.anexarExame) — o
+  // reducer só precisa somar ao estado local, patchar colaboradores.exames
+  // (localmente — a gravação real já aconteceu via api/atualizar-exame) e
+  // registrar no log.
+  | { type: "ANEXAR_EXAME"; anexo: AttachmentExame; proximo: string; by: string }
   | { type: "DESLIGAR_COLABORADOR"; colabId: number; date: string; motivo: string; by: string }
   | {
       type: "ATUALIZAR_DADOS_COLABORADOR";
@@ -83,6 +79,6 @@ export type PortalAction =
       by: string;
     }
   | { type: "EDITAR_PRECO_FARDAMENTO"; tipo: string; valor: number; fornecedor: string; dataCotacao: string; by: string }
-  | { type: "GERAR_FICHA_EPI"; fichaId: string; colabId: number; entregaIds: string[]; by: string }
-  | { type: "ANEXAR_FICHA_EPI_ASSINADA"; fichaId: string; fileName: string; fileDataUrl: string; mime: string; by: string }
+  | { type: "GERAR_FICHA_EPI"; fichaId: string; numero: number; colabId: number; entregaIds: string[]; by: string }
+  | { type: "ANEXAR_FICHA_EPI_ASSINADA"; fichaId: string; fileName: string; storagePath: string; mime: string; by: string }
   | { type: "RESET" };

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Modal } from "../../components/ui/Modal";
 import { Button } from "../../components/ui/Button";
 import type { EntregaEpi } from "../../types/domain";
@@ -5,13 +6,23 @@ import type { EntregaEpi } from "../../types/domain";
 interface ExcluirEntregaEpiModalProps {
   entrega: EntregaEpi;
   onClose: () => void;
-  onConfirm: () => void;
+  onConfirm: () => Promise<{ ok: true } | { ok: false; error: string }>;
 }
 
 /** Confirmação antes de excluir uma entrega de EPI já registrada — ação irreversível. */
 export function ExcluirEntregaEpiModal({ entrega, onClose, onConfirm }: ExcluirEntregaEpiModalProps) {
-  function handleConfirm() {
-    onConfirm();
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  async function handleConfirm() {
+    setEnviando(true);
+    setErro(null);
+    const result = await onConfirm();
+    setEnviando(false);
+    if (!result.ok) {
+      setErro(result.error);
+      return;
+    }
     onClose();
   }
 
@@ -22,11 +33,11 @@ export function ExcluirEntregaEpiModal({ entrega, onClose, onConfirm }: ExcluirE
       onClose={onClose}
       footer={
         <>
-          <Button variant="ghost" onClick={onClose}>
+          <Button variant="ghost" onClick={onClose} disabled={enviando}>
             Cancelar
           </Button>
-          <Button variant="danger" onClick={handleConfirm}>
-            Excluir entrega
+          <Button variant="danger" onClick={handleConfirm} disabled={enviando}>
+            {enviando ? "Excluindo..." : "Excluir entrega"}
           </Button>
         </>
       }
@@ -36,6 +47,8 @@ export function ExcluirEntregaEpiModal({ entrega, onClose, onConfirm }: ExcluirE
         entregue em {entrega.dataEntrega}) e não pode ser desfeita. Se a ficha já tiver sido gerada ou assinada, os documentos anexados a
         este registro também deixam de ficar acessíveis.
       </div>
+
+      {erro && <div style={{ marginTop: 10, fontSize: 12, fontWeight: 600, color: "var(--color-danger, #99413a)" }}>{erro}</div>}
     </Modal>
   );
 }

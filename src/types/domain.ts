@@ -160,7 +160,8 @@ export interface FichaEntregaEpi {
   /** Documento da ficha assinada, anexado pelo RH após a assinatura do colaborador (PDF/JPG/PNG). */
   assinaturaFileName?: string;
   assinaturaMime?: string;
-  assinaturaDataUrl?: string;
+  /** Caminho no bucket Storage `anexos-sst` (Supabase) — o conteúdo é baixado sob demanda via signed URL, nunca embutido aqui. */
+  assinaturaStoragePath?: string;
   assinaturaAnexadaEm?: string;
   assinaturaResponsavel?: string;
 }
@@ -173,8 +174,8 @@ export interface AttachmentExame {
   fornecedor: string;
   valor: number;
   fileName: string;
-  /** Conteúdo do arquivo como data URL (base64), quando o usuário anexa um documento. Sem backend de arquivos, fica no próprio estado local. */
-  fileDataUrl?: string;
+  /** Caminho no bucket Storage `anexos-sst` (Supabase) — o conteúdo é baixado sob demanda via signed URL, nunca embutido aqui. */
+  storagePath?: string;
   ts: string;
   responsavel: string;
 }

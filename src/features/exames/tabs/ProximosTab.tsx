@@ -10,6 +10,7 @@ import { ativosDe, todosOsCargos } from "../lib/exameUtils";
 import { ExameFichaDrawer } from "../ExameFichaDrawer";
 import { AnexarExameModal } from "../AnexarExameModal";
 import type { AnexarExamePayload } from "../AnexarExameModal";
+import { anexarExame } from "../../../repositories/anexosExamesRepository";
 import type { Colaborador, ExameRegistro } from "../../../types/domain";
 import shared from "../ExamesShared.module.css";
 import styles from "./ProximosTab.module.css";
@@ -42,19 +43,21 @@ export function ProximosTab() {
     return lista.sort((a, b) => (parseBR(a.exame.proximo)?.getTime() ?? 0) - (parseBR(b.exame.proximo)?.getTime() ?? 0));
   }, [ativos]);
 
-  function handleAnexar(payload: AnexarExamePayload) {
-    if (!user) return;
-    dispatch({
-      type: "ANEXAR_EXAME",
+  async function handleAnexar(payload: AnexarExamePayload) {
+    if (!user) return { ok: false as const, error: "Sessão expirada — faça login novamente." };
+    const result = await anexarExame({
       colabId: payload.colabId,
       proc: payload.proc,
       dataISO: payload.dataISO,
       proximo: payload.proximo,
       fornecedor: payload.fornecedor,
       valor: payload.valor,
-      fileName: payload.fileName,
+      file: payload.file,
       by: user.email,
     });
+    if (!result.ok) return result;
+    dispatch({ type: "ANEXAR_EXAME", anexo: result.anexo, proximo: payload.proximo, by: user.email });
+    return { ok: true as const };
   }
 
   return (

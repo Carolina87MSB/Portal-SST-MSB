@@ -8,7 +8,7 @@ export type StatusFichaEpi = "assinada" | "aguardando";
  * 🟡 aguardando — a ficha (PDF) foi gerada, falta anexar a via assinada.
  */
 export function statusFichaEpi(ficha: FichaEntregaEpi): StatusFichaEpi {
-  return ficha.assinaturaDataUrl ? "assinada" : "aguardando";
+  return ficha.assinaturaStoragePath ? "assinada" : "aguardando";
 }
 
 export function labelStatusFichaEpi(status: StatusFichaEpi): string {

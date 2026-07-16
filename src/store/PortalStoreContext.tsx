@@ -3,6 +3,8 @@ import type { ReactNode } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { colaboradoresRepository } from "../repositories/colaboradoresRepository";
 import { getDesligamentosPendentes } from "../repositories/desligamentoPendenteRepository";
+import { getAnexosExames } from "../repositories/anexosExamesRepository";
+import { getEntregasEpi, getFichasEpi } from "../repositories/fichasEpiRepository";
 import type { PortalAction } from "./actions";
 import { portalReducer } from "./reducer";
 import { buildInitialState } from "./seed";
@@ -77,6 +79,28 @@ export function PortalStoreProvider({ children }: { children: ReactNode }) {
       .catch(() => {
         // notificação não-crítica — se falhar, o Dashboard só fica sem o aviso desta vez.
       });
+    // Entregas/fichas de EPI e anexos de exame agora vêm do Supabase (ver
+    // anexosExamesRepository.ts / fichasEpiRepository.ts) — se uma dessas
+    // cargas falhar, as telas de EPI/exames só ficam vazias desta vez; não
+    // impede o resto do app de funcionar.
+    getEntregasEpi()
+      .then((entregas) => {
+        if (cancelado) return;
+        dispatch({ type: "SET_ENTREGAS_EPI", entregas });
+      })
+      .catch(() => {});
+    getFichasEpi()
+      .then((fichasEpi) => {
+        if (cancelado) return;
+        dispatch({ type: "SET_FICHAS_EPI", fichasEpi });
+      })
+      .catch(() => {});
+    getAnexosExames()
+      .then((attachments) => {
+        if (cancelado) return;
+        dispatch({ type: "SET_ANEXOS_EXAMES", attachments });
+      })
+      .catch(() => {});
     return () => {
       cancelado = true;
     };

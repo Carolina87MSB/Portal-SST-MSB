@@ -7,6 +7,7 @@ import { deptName, fmtMoney, titleCase } from "../../../domain/text";
 import { parseBR } from "../../../domain/dates";
 import { matchesColaboradorSearch } from "../lib/epiUtils";
 import { FichaEpiControls } from "../FichaEpiControls";
+import { anexarAssinaturaFicha } from "../../../repositories/fichasEpiRepository";
 import type { Colaborador, EntregaEpi, FichaEntregaEpi } from "../../../types/domain";
 import shared from "../EpiShared.module.css";
 import styles from "./HistoricoTab.module.css";
@@ -173,9 +174,19 @@ export function HistoricoTab() {
                   ficha={entrega.fichaId ? state.fichasEpi.find((f) => f.id === entrega.fichaId) : undefined}
                   entregasDaFicha={entrega.fichaId ? state.entregas.filter((e) => e.fichaId === entrega.fichaId) : []}
                   canEdit={canEdit}
-                  onAnexarAssinatura={(fichaId, fileName, fileDataUrl, mime) => {
-                    if (!user) return;
-                    dispatch({ type: "ANEXAR_FICHA_EPI_ASSINADA", fichaId, fileName, fileDataUrl, mime, by: user.email });
+                  onAnexarAssinatura={async (fichaId, file) => {
+                    if (!user) return { ok: false as const, error: "Sessão expirada — faça login novamente." };
+                    const result = await anexarAssinaturaFicha(fichaId, file, user.email);
+                    if (!result.ok) return result;
+                    dispatch({
+                      type: "ANEXAR_FICHA_EPI_ASSINADA",
+                      fichaId,
+                      fileName: file.name,
+                      storagePath: result.storagePath,
+                      mime: file.type,
+                      by: user.email,
+                    });
+                    return { ok: true as const };
                   }}
                 />
               ))}
@@ -193,7 +204,7 @@ interface EntregaRowProps {
   ficha: FichaEntregaEpi | undefined;
   entregasDaFicha: EntregaEpi[];
   canEdit: boolean;
-  onAnexarAssinatura: (fichaId: string, fileName: string, fileDataUrl: string, mime: string) => void;
+  onAnexarAssinatura: (fichaId: string, file: File) => Promise<{ ok: true } | { ok: false; error: string }>;
 }
 
 function EntregaRow({ entrega, colab, ficha, entregasDaFicha, canEdit, onAnexarAssinatura }: EntregaRowProps) {
@@ -225,7 +236,7 @@ function EntregaRow({ entrega, colab, ficha, entregasDaFicha, canEdit, onAnexarA
             entregas={entregasDaFicha}
             colaborador={colab}
             canEdit={canEdit}
-            onAnexarAssinatura={(fileName, fileDataUrl, mime) => onAnexarAssinatura(ficha.id, fileName, fileDataUrl, mime)}
+            onAnexarAssinatura={(file) => onAnexarAssinatura(ficha.id, file)}
           />
         ) : (
           <span className={styles.semFicha}>Ainda não incluído em uma ficha</span>

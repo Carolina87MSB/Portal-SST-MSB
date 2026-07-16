@@ -6,6 +6,7 @@ import { usePortalStore } from "../../store/PortalStoreContext";
 import { portalRepository } from "../../repositories/portalRepository";
 import { colaboradoresRepository } from "../../repositories/colaboradoresRepository";
 import { removerDesligamentoPendente } from "../../repositories/desligamentoPendenteRepository";
+import { anexarExame, getAnexoSignedUrl } from "../../repositories/anexosExamesRepository";
 import { statusDoRegistro, toneForStatus } from "../../domain/exameStatus";
 import { deptName, fmtMoney, iniciais, maskCpf, titleCase } from "../../domain/text";
 import { idadeFromISO, isoToBR } from "../../domain/dates";
@@ -30,6 +31,8 @@ export function ExameFichaDrawer({ colabId, onClose, abrirDesligarPendente }: Ex
   const [anexarProc, setAnexarProc] = useState<string | undefined | null>(null);
   const [anexarTipo, setAnexarTipo] = useState<string | undefined>(undefined);
   const [desligarOpen, setDesligarOpen] = useState(Boolean(abrirDesligarPendente));
+  const [abrindoPath, setAbrindoPath] = useState<string | null>(null);
+  const [erroAnexo, setErroAnexo] = useState<string | null>(null);
 
   const colaborador = state.colaboradores.find((c) => c.id === colabId);
   const desligamento = state.desligados[colabId];
@@ -58,25 +61,43 @@ export function ExameFichaDrawer({ colabId, onClose, abrirDesligarPendente }: Ex
 
   const idade = idadeFromISO(colaborador.nascimento);
 
-  function handleAnexar(payload: AnexarExamePayload) {
-    if (!user) return;
-    dispatch({
-      type: "ANEXAR_EXAME",
+  async function handleAnexar(payload: AnexarExamePayload) {
+    if (!user) return { ok: false as const, error: "Sessão expirada — faça login novamente." };
+    const result = await anexarExame({
       colabId: payload.colabId,
       proc: payload.proc,
       dataISO: payload.dataISO,
       proximo: payload.proximo,
       fornecedor: payload.fornecedor,
       valor: payload.valor,
-      fileName: payload.fileName,
-      fileDataUrl: payload.fileDataUrl,
+      file: payload.file,
       by: user.email,
     });
+    if (!result.ok) return result;
+    dispatch({ type: "ANEXAR_EXAME", anexo: result.anexo, proximo: payload.proximo, by: user.email });
+    return { ok: true as const };
   }
 
   /** Anexo mais recente para um exame específico deste colaborador (se houver). */
   function attachmentFor(proc: string) {
     return attachments.find((a) => a.proc === proc);
+  }
+
+  async function handleAbrirAnexo(storagePath: string) {
+    if (abrindoPath) return;
+    // Abre a aba em branco já dentro do gesto de clique (senão bloqueadores de
+    // pop-up derrubam a chamada depois do await) e só preenche a URL quando a
+    // signed URL chega.
+    const janela = window.open("", "_blank", "noopener,noreferrer");
+    setAbrindoPath(storagePath);
+    setErroAnexo(null);
+    const url = await getAnexoSignedUrl(storagePath);
+    setAbrindoPath(null);
+    if (url && janela) janela.location.href = url;
+    else {
+      janela?.close();
+      setErroAnexo("Falha ao gerar o link do arquivo — tente novamente.");
+    }
   }
 
   async function handleDesligar(dataIso: string, motivo: string, precisaExameDemissional: boolean) {
@@ -170,19 +191,18 @@ export function ExameFichaDrawer({ colabId, onClose, abrirDesligarPendente }: Ex
                 <div className={styles.examRight}>
                   <StatusBadge label={status} tone={toneForStatus(status)} />
                   {anexo ? (
-                    anexo.fileDataUrl ? (
-                      <a
-                        href={anexo.fileDataUrl}
-                        download={anexo.fileName || undefined}
-                        target="_blank"
-                        rel="noreferrer"
+                    anexo.storagePath ? (
+                      <button
+                        type="button"
                         className={styles.docLink}
+                        disabled={abrindoPath === anexo.storagePath}
+                        onClick={() => handleAbrirAnexo(anexo.storagePath!)}
                         title={`Documento: ${anexo.fileName || "arquivo anexado"}`}
                       >
                         <FileText size={13} />
-                      </a>
+                      </button>
                     ) : (
-                      <span className={styles.docLink} title={`Documento: ${anexo.fileName || "sem nome de arquivo"} (conteúdo não capturado)`}>
+                      <span className={styles.docLink} title={`Documento: ${anexo.fileName || "sem nome de arquivo"} (sem arquivo anexado)`}>
                         <FileText size={13} />
                       </span>
                     )
@@ -223,10 +243,15 @@ export function ExameFichaDrawer({ colabId, onClose, abrirDesligarPendente }: Ex
               </div>
               <div className={styles.attachMeta}>
                 {a.fileName ? (
-                  a.fileDataUrl ? (
-                    <a href={a.fileDataUrl} download={a.fileName} target="_blank" rel="noreferrer" className={styles.attachFileLink}>
+                  a.storagePath ? (
+                    <button
+                      type="button"
+                      className={styles.attachFileLink}
+                      disabled={abrindoPath === a.storagePath}
+                      onClick={() => handleAbrirAnexo(a.storagePath!)}
+                    >
                       <FileText size={12} /> {a.fileName}
-                    </a>
+                    </button>
                   ) : (
                     a.fileName
                   )
@@ -239,6 +264,10 @@ export function ExameFichaDrawer({ colabId, onClose, abrirDesligarPendente }: Ex
           ))}
         </div>
       )}
+
+      {erroAnexo ? (
+        <div style={{ fontSize: 12, fontWeight: 600, color: "var(--color-danger, #99413a)" }}>{erroAnexo}</div>
+      ) : null}
 
       {anexarProc !== null ? (
         <AnexarExameModal
