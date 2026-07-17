@@ -127,6 +127,10 @@ export async function anexarExame(input: AnexarExameInput): Promise<AnexarExameR
 export async function getAnexoSignedUrl(storagePath: string): Promise<string | null> {
   if (!supabaseConfigured) return null;
   const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(storagePath, 600);
-  if (error) return null;
+  if (error) {
+    // eslint-disable-next-line no-console
+    console.error("[anexosExamesRepository] Falha ao gerar signed URL", { storagePath, error });
+    return null;
+  }
   return data.signedUrl;
 }
