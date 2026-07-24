@@ -7,6 +7,7 @@ import { portalRepository } from "../../repositories/portalRepository";
 import { colaboradoresRepository } from "../../repositories/colaboradoresRepository";
 import { removerDesligamentoPendente } from "../../repositories/desligamentoPendenteRepository";
 import { anexarExame, getAnexoSignedUrl } from "../../repositories/anexosExamesRepository";
+import { abrirArquivoUmaVez } from "../../domain/abrirArquivo";
 import { statusDoRegistro, toneForStatus } from "../../domain/exameStatus";
 import { deptName, fmtMoney, iniciais, maskCpf, titleCase } from "../../domain/text";
 import { idadeFromISO, isoToBR } from "../../domain/dates";
@@ -98,12 +99,7 @@ export function ExameFichaDrawer({ colabId, onClose, abrirDesligarPendente }: Ex
         setErroAnexo(`Falha ao gerar o link do arquivo: ${result.error}`);
         return;
       }
-      // Abre já com a URL final (nunca uma aba em branco pré-aberta) — algumas
-      // combinações de navegador/PDF viewer abrem o PDF numa aba própria mesmo
-      // quando se navega uma aba em branco existente, deixando essa em branco
-      // órfã. Se o pop-up for bloqueado, cai para a aba atual.
-      const janela = window.open(result.url, "_blank", "noopener,noreferrer");
-      if (!janela) window.location.href = result.url;
+      abrirArquivoUmaVez(result.url);
     } finally {
       abrindoRef.current = false;
       setAbrindoPath(null);
