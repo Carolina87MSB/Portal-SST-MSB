@@ -7,7 +7,7 @@ import type { Colaborador, EntregaEpi, FichaEntregaEpi } from "../../types/domai
 import { baixarFichaEntregaEpiPdf } from "../../domain/pdf/fichaEntregaEpi";
 import { labelStatusFichaEpi, statusFichaEpi, toneStatusFichaEpi } from "../../domain/fichaAssinatura";
 import { getFichaSignedUrl } from "../../repositories/fichasEpiRepository";
-import { abrirArquivoUmaVez } from "../../domain/abrirArquivo";
+import { abrirAnexoUmaVez } from "../../domain/abrirArquivo";
 import styles from "./FichaEpiControls.module.css";
 
 interface FichaEpiControlsProps {
@@ -48,15 +48,12 @@ export function FichaEpiControls({ ficha, entregas, colaborador, canEdit, onAnex
 
   async function handleVerAssinada() {
     if (!ficha.assinaturaStoragePath || abrindoRef.current) return;
+    const storagePath = ficha.assinaturaStoragePath;
     abrindoRef.current = true;
     setAbrindo(true);
     try {
-      const result = await getFichaSignedUrl(ficha.assinaturaStoragePath);
-      if (!result.ok) {
-        setErro(`Falha ao gerar o link do arquivo: ${result.error}`);
-        return;
-      }
-      abrirArquivoUmaVez(result.url);
+      const result = await abrirAnexoUmaVez(storagePath, () => getFichaSignedUrl(storagePath));
+      if ("error" in result) setErro(`Falha ao gerar o link do arquivo: ${result.error}`);
     } finally {
       abrindoRef.current = false;
       setAbrindo(false);

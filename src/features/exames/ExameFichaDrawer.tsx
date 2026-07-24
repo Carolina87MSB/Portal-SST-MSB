@@ -7,7 +7,7 @@ import { portalRepository } from "../../repositories/portalRepository";
 import { colaboradoresRepository } from "../../repositories/colaboradoresRepository";
 import { removerDesligamentoPendente } from "../../repositories/desligamentoPendenteRepository";
 import { anexarExame, getAnexoSignedUrl } from "../../repositories/anexosExamesRepository";
-import { abrirArquivoUmaVez } from "../../domain/abrirArquivo";
+import { abrirAnexoUmaVez } from "../../domain/abrirArquivo";
 import { statusDoRegistro, toneForStatus } from "../../domain/exameStatus";
 import { deptName, fmtMoney, iniciais, maskCpf, titleCase } from "../../domain/text";
 import { idadeFromISO, isoToBR } from "../../domain/dates";
@@ -94,12 +94,10 @@ export function ExameFichaDrawer({ colabId, onClose, abrirDesligarPendente }: Ex
     setAbrindoPath(storagePath);
     setErroAnexo(null);
     try {
-      const result = await getAnexoSignedUrl(storagePath);
-      if (!result.ok) {
+      const result = await abrirAnexoUmaVez(storagePath, () => getAnexoSignedUrl(storagePath));
+      if ("error" in result) {
         setErroAnexo(`Falha ao gerar o link do arquivo: ${result.error}`);
-        return;
       }
-      abrirArquivoUmaVez(result.url);
     } finally {
       abrindoRef.current = false;
       setAbrindoPath(null);

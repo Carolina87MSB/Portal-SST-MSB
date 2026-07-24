@@ -5,7 +5,7 @@ import { EmptyState } from "../../components/ui/EmptyState";
 import { baixarFichaEntregaEpiPdf } from "../../domain/pdf/fichaEntregaEpi";
 import { codigoFichaEpi } from "../../domain/fichaAssinatura";
 import { getFichaSignedUrl } from "../../repositories/fichasEpiRepository";
-import { abrirArquivoUmaVez } from "../../domain/abrirArquivo";
+import { abrirAnexoUmaVez } from "../../domain/abrirArquivo";
 import type { Colaborador, EntregaEpi, FichaEntregaEpi } from "../../types/domain";
 import styles from "./FichasAssinadasModal.module.css";
 
@@ -33,12 +33,8 @@ export function FichasAssinadasModal({ colaboradorNome, colaborador, fichas, ent
     setAbrindoPath(storagePath);
     setErro(null);
     try {
-      const result = await getFichaSignedUrl(storagePath);
-      if (!result.ok) {
-        setErro(`Falha ao gerar o link do arquivo: ${result.error}`);
-        return;
-      }
-      abrirArquivoUmaVez(result.url);
+      const result = await abrirAnexoUmaVez(storagePath, () => getFichaSignedUrl(storagePath));
+      if ("error" in result) setErro(`Falha ao gerar o link do arquivo: ${result.error}`);
     } finally {
       abrindoRef.current = false;
       setAbrindoPath(null);
