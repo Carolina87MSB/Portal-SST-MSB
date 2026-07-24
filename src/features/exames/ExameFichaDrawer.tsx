@@ -93,11 +93,16 @@ export function ExameFichaDrawer({ colabId, onClose, abrirDesligarPendente }: Ex
     setErroAnexo(null);
     const result = await getAnexoSignedUrl(storagePath);
     setAbrindoPath(null);
-    if (result.ok && janela) janela.location.href = result.url;
-    else {
+    if (!result.ok) {
       janela?.close();
-      setErroAnexo(!result.ok ? `Falha ao gerar o link do arquivo: ${result.error}` : "Falha ao gerar o link do arquivo — tente novamente.");
+      setErroAnexo(`Falha ao gerar o link do arquivo: ${result.error}`);
+      return;
     }
+    // Link válido: se a aba nova não abriu (bloqueio de pop-up), navega na
+    // aba atual em vez de só mostrar erro — o colaborador ainda consegue ver
+    // o arquivo, só não em aba separada.
+    if (janela) janela.location.href = result.url;
+    else window.location.href = result.url;
   }
 
   async function handleDesligar(dataIso: string, motivo: string, precisaExameDemissional: boolean) {

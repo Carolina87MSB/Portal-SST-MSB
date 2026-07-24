@@ -50,11 +50,15 @@ export function FichaEpiControls({ ficha, entregas, colaborador, canEdit, onAnex
     setAbrindo(true);
     const result = await getFichaSignedUrl(ficha.assinaturaStoragePath);
     setAbrindo(false);
-    if (result.ok && janela) janela.location.href = result.url;
-    else {
+    if (!result.ok) {
       janela?.close();
-      setErro(!result.ok ? `Falha ao gerar o link do arquivo: ${result.error}` : "Falha ao gerar o link do arquivo — tente novamente.");
+      setErro(`Falha ao gerar o link do arquivo: ${result.error}`);
+      return;
     }
+    // Link válido: se a aba nova não abriu (bloqueio de pop-up), navega na
+    // aba atual em vez de só mostrar erro.
+    if (janela) janela.location.href = result.url;
+    else window.location.href = result.url;
   }
 
   return (
