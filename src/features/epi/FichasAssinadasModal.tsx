@@ -34,9 +34,7 @@ export function FichasAssinadasModal({ colaboradorNome, colaborador, fichas, ent
     setErro(null);
     try {
       const result = await abrirAnexoUmaVez(storagePath, () => getFichaSignedUrl(storagePath));
-      // DIAGNÓSTICO TEMPORÁRIO — remover depois de confirmar a causa da duplicação.
-      const diag = `[diagnóstico: chamadas=${result.chamadas} aberturas=${result.aberturas}]`;
-      setErro("error" in result ? `Falha ao gerar o link do arquivo: ${result.error} ${diag}` : diag);
+      if ("error" in result) setErro(`Falha ao gerar o link do arquivo: ${result.error}`);
     } finally {
       abrindoRef.current = false;
       setAbrindoPath(null);

@@ -95,12 +95,8 @@ export function ExameFichaDrawer({ colabId, onClose, abrirDesligarPendente }: Ex
     setErroAnexo(null);
     try {
       const result = await abrirAnexoUmaVez(storagePath, () => getAnexoSignedUrl(storagePath));
-      // DIAGNÓSTICO TEMPORÁRIO — remover depois de confirmar a causa da duplicação.
-      const diag = `[diagnóstico: chamadas=${result.chamadas} aberturas=${result.aberturas}]`;
       if ("error" in result) {
-        setErroAnexo(`Falha ao gerar o link do arquivo: ${result.error} ${diag}`);
-      } else {
-        setErroAnexo(diag);
+        setErroAnexo(`Falha ao gerar o link do arquivo: ${result.error}`);
       }
     } finally {
       abrindoRef.current = false;

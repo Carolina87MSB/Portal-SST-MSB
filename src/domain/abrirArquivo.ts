@@ -6,21 +6,16 @@
 // URL — cada chamada a createSignedUrl gera um token diferente, então travar
 // comparando a URL final (como numa versão anterior desta função) não pega
 // uma segunda chamada que gera sua própria URL só que igualmente válida.
+//
+// Confirmado via diagnóstico (contagem de chamadas exibida na tela) que o
+// código só chama esta função e window.open() uma vez por clique — uma
+// segunda aba/download que apareça é comportamento do navegador (ex.: Edge
+// processando o PDF), não deste código.
 const emAndamentoOuRecente = new Map<string, number>();
 
 const JANELA_DEDUP_MS = 3000;
 
-// DIAGNÓSTICO TEMPORÁRIO: conta quantas vezes abrirAnexoUmaVez() é chamada
-// desde que a página carregou, e quantas vezes window.open() de fato roda —
-// devolvido no resultado pra aparecer na tela sem precisar do DevTools.
-// Remover depois de confirmar a causa da duplicação.
-let totalChamadas = 0;
-let totalAberturas = 0;
-
-export type AbrirResultado =
-  | { ok: true; chamadas: number; aberturas: number }
-  | { ok: false; error: string; chamadas: number; aberturas: number }
-  | { ignorado: true; chamadas: number; aberturas: number };
+export type AbrirResultado = { ok: true } | { ok: false; error: string } | { ignorado: true };
 
 /** Gera a signed URL (via `gerarUrl`) e abre numa aba nova — se o navegador
  * bloquear o pop-up, navega na aba atual. Qualquer chamada para o MESMO
@@ -30,19 +25,17 @@ export async function abrirAnexoUmaVez(
   storagePath: string,
   gerarUrl: () => Promise<{ ok: true; url: string } | { ok: false; error: string }>,
 ): Promise<AbrirResultado> {
-  totalChamadas += 1;
   const agora = Date.now();
   const ultima = emAndamentoOuRecente.get(storagePath);
   if (ultima !== undefined && agora - ultima < JANELA_DEDUP_MS) {
-    return { ignorado: true, chamadas: totalChamadas, aberturas: totalAberturas };
+    return { ignorado: true };
   }
   emAndamentoOuRecente.set(storagePath, agora);
 
   const result = await gerarUrl();
-  if (!result.ok) return { ok: false, error: result.error, chamadas: totalChamadas, aberturas: totalAberturas };
+  if (!result.ok) return result;
 
-  totalAberturas += 1;
   const janela = window.open(result.url, "_blank", "noopener,noreferrer");
   if (!janela) window.location.href = result.url;
-  return { ok: true, chamadas: totalChamadas, aberturas: totalAberturas };
+  return { ok: true };
 }
