@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { FileText, Paperclip, Plus, UserMinus } from "lucide-react";
 import { Avatar, Button, Drawer, StatusBadge } from "../../components/ui";
 import { useAuth } from "../../auth/AuthContext";
@@ -33,6 +33,10 @@ export function ExameFichaDrawer({ colabId, onClose, abrirDesligarPendente }: Ex
   const [desligarOpen, setDesligarOpen] = useState(Boolean(abrirDesligarPendente));
   const [abrindoPath, setAbrindoPath] = useState<string | null>(null);
   const [erroAnexo, setErroAnexo] = useState<string | null>(null);
+  // Trava síncrona contra clique duplo — o estado abrindoPath só desabilita o
+  // botão depois de um re-render, tarde demais pra barrar dois cliques bem
+  // rápidos (ex.: duplo clique real), que abriam duas abas com o mesmo anexo.
+  const abrindoRef = useRef(false);
 
   const colaborador = state.colaboradores.find((c) => c.id === colabId);
   const desligamento = state.desligados[colabId];
@@ -84,21 +88,26 @@ export function ExameFichaDrawer({ colabId, onClose, abrirDesligarPendente }: Ex
   }
 
   async function handleAbrirAnexo(storagePath: string) {
-    if (abrindoPath) return;
+    if (abrindoRef.current) return;
+    abrindoRef.current = true;
     setAbrindoPath(storagePath);
     setErroAnexo(null);
-    const result = await getAnexoSignedUrl(storagePath);
-    setAbrindoPath(null);
-    if (!result.ok) {
-      setErroAnexo(`Falha ao gerar o link do arquivo: ${result.error}`);
-      return;
+    try {
+      const result = await getAnexoSignedUrl(storagePath);
+      if (!result.ok) {
+        setErroAnexo(`Falha ao gerar o link do arquivo: ${result.error}`);
+        return;
+      }
+      // Abre já com a URL final (nunca uma aba em branco pré-aberta) — algumas
+      // combinações de navegador/PDF viewer abrem o PDF numa aba própria mesmo
+      // quando se navega uma aba em branco existente, deixando essa em branco
+      // órfã. Se o pop-up for bloqueado, cai para a aba atual.
+      const janela = window.open(result.url, "_blank", "noopener,noreferrer");
+      if (!janela) window.location.href = result.url;
+    } finally {
+      abrindoRef.current = false;
+      setAbrindoPath(null);
     }
-    // Abre já com a URL final (nunca uma aba em branco pré-aberta) — algumas
-    // combinações de navegador/PDF viewer abrem o PDF numa aba própria mesmo
-    // quando se navega uma aba em branco existente, deixando essa em branco
-    // órfã. Se o pop-up for bloqueado, cai para a aba atual.
-    const janela = window.open(result.url, "_blank", "noopener,noreferrer");
-    if (!janela) window.location.href = result.url;
   }
 
   async function handleDesligar(dataIso: string, motivo: string, precisaExameDemissional: boolean) {

@@ -23,6 +23,10 @@ export function FichaEpiControls({ ficha, entregas, colaborador, canEdit, onAnex
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [abrindo, setAbrindo] = useState(false);
+  // Trava síncrona contra clique duplo — o estado abrindo só desabilita o
+  // botão depois de um re-render, tarde demais pra barrar dois cliques bem
+  // rápidos (ex.: duplo clique real), que abriam duas abas com o mesmo anexo.
+  const abrindoRef = useRef(false);
   const status = statusFichaEpi(ficha);
 
   function handleVerPdf() {
@@ -42,20 +46,25 @@ export function FichaEpiControls({ ficha, entregas, colaborador, canEdit, onAnex
   }
 
   async function handleVerAssinada() {
-    if (!ficha.assinaturaStoragePath || abrindo) return;
+    if (!ficha.assinaturaStoragePath || abrindoRef.current) return;
+    abrindoRef.current = true;
     setAbrindo(true);
-    const result = await getFichaSignedUrl(ficha.assinaturaStoragePath);
-    setAbrindo(false);
-    if (!result.ok) {
-      setErro(`Falha ao gerar o link do arquivo: ${result.error}`);
-      return;
+    try {
+      const result = await getFichaSignedUrl(ficha.assinaturaStoragePath);
+      if (!result.ok) {
+        setErro(`Falha ao gerar o link do arquivo: ${result.error}`);
+        return;
+      }
+      // Abre já com a URL final (nunca uma aba em branco pré-aberta) — algumas
+      // combinações de navegador/PDF viewer abrem o PDF numa aba própria mesmo
+      // quando se navega uma aba em branco existente, deixando essa em branco
+      // órfã. Se o pop-up for bloqueado, cai para a aba atual.
+      const janela = window.open(result.url, "_blank", "noopener,noreferrer");
+      if (!janela) window.location.href = result.url;
+    } finally {
+      abrindoRef.current = false;
+      setAbrindo(false);
     }
-    // Abre já com a URL final (nunca uma aba em branco pré-aberta) — algumas
-    // combinações de navegador/PDF viewer abrem o PDF numa aba própria mesmo
-    // quando se navega uma aba em branco existente, deixando essa em branco
-    // órfã. Se o pop-up for bloqueado, cai para a aba atual.
-    const janela = window.open(result.url, "_blank", "noopener,noreferrer");
-    if (!janela) window.location.href = result.url;
   }
 
   return (

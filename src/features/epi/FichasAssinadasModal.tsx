@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { FileDown, FileText } from "lucide-react";
 import { Modal } from "../../components/ui/Modal";
 import { EmptyState } from "../../components/ui/EmptyState";
@@ -21,23 +21,32 @@ export function FichasAssinadasModal({ colaboradorNome, colaborador, fichas, ent
   const fichasOrdenadas = fichas.slice().sort((a, b) => (b.assinaturaAnexadaEm ?? "").localeCompare(a.assinaturaAnexadaEm ?? ""));
   const [abrindoPath, setAbrindoPath] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
+  // Trava síncrona contra clique duplo — o estado abrindoPath só desabilita o
+  // botão depois de um re-render, tarde demais pra barrar dois cliques bem
+  // rápidos (ex.: duplo clique real), que abriam duas abas com o mesmo anexo.
+  const abrindoRef = useRef(false);
 
   async function handleVerAssinada(storagePath: string) {
-    if (abrindoPath) return;
+    if (abrindoRef.current) return;
+    abrindoRef.current = true;
     setAbrindoPath(storagePath);
     setErro(null);
-    const result = await getFichaSignedUrl(storagePath);
-    setAbrindoPath(null);
-    if (!result.ok) {
-      setErro(`Falha ao gerar o link do arquivo: ${result.error}`);
-      return;
+    try {
+      const result = await getFichaSignedUrl(storagePath);
+      if (!result.ok) {
+        setErro(`Falha ao gerar o link do arquivo: ${result.error}`);
+        return;
+      }
+      // Abre já com a URL final (nunca uma aba em branco pré-aberta) — algumas
+      // combinações de navegador/PDF viewer abrem o PDF numa aba própria mesmo
+      // quando se navega uma aba em branco existente, deixando essa em branco
+      // órfã. Se o pop-up for bloqueado, cai para a aba atual.
+      const janela = window.open(result.url, "_blank", "noopener,noreferrer");
+      if (!janela) window.location.href = result.url;
+    } finally {
+      abrindoRef.current = false;
+      setAbrindoPath(null);
     }
-    // Abre já com a URL final (nunca uma aba em branco pré-aberta) — algumas
-    // combinações de navegador/PDF viewer abrem o PDF numa aba própria mesmo
-    // quando se navega uma aba em branco existente, deixando essa em branco
-    // órfã. Se o pop-up for bloqueado, cai para a aba atual.
-    const janela = window.open(result.url, "_blank", "noopener,noreferrer");
-    if (!janela) window.location.href = result.url;
   }
 
   return (
