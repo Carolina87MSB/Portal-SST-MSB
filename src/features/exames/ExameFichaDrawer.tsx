@@ -85,24 +85,20 @@ export function ExameFichaDrawer({ colabId, onClose, abrirDesligarPendente }: Ex
 
   async function handleAbrirAnexo(storagePath: string) {
     if (abrindoPath) return;
-    // Abre a aba em branco já dentro do gesto de clique (senão bloqueadores de
-    // pop-up derrubam a chamada depois do await) e só preenche a URL quando a
-    // signed URL chega.
-    const janela = window.open("", "_blank", "noopener,noreferrer");
     setAbrindoPath(storagePath);
     setErroAnexo(null);
     const result = await getAnexoSignedUrl(storagePath);
     setAbrindoPath(null);
     if (!result.ok) {
-      janela?.close();
       setErroAnexo(`Falha ao gerar o link do arquivo: ${result.error}`);
       return;
     }
-    // Link válido: se a aba nova não abriu (bloqueio de pop-up), navega na
-    // aba atual em vez de só mostrar erro — o colaborador ainda consegue ver
-    // o arquivo, só não em aba separada.
-    if (janela) janela.location.href = result.url;
-    else window.location.href = result.url;
+    // Abre já com a URL final (nunca uma aba em branco pré-aberta) — algumas
+    // combinações de navegador/PDF viewer abrem o PDF numa aba própria mesmo
+    // quando se navega uma aba em branco existente, deixando essa em branco
+    // órfã. Se o pop-up for bloqueado, cai para a aba atual.
+    const janela = window.open(result.url, "_blank", "noopener,noreferrer");
+    if (!janela) window.location.href = result.url;
   }
 
   async function handleDesligar(dataIso: string, motivo: string, precisaExameDemissional: boolean) {

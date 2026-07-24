@@ -24,20 +24,20 @@ export function FichasAssinadasModal({ colaboradorNome, colaborador, fichas, ent
 
   async function handleVerAssinada(storagePath: string) {
     if (abrindoPath) return;
-    const janela = window.open("", "_blank", "noopener,noreferrer");
     setAbrindoPath(storagePath);
     setErro(null);
     const result = await getFichaSignedUrl(storagePath);
     setAbrindoPath(null);
     if (!result.ok) {
-      janela?.close();
       setErro(`Falha ao gerar o link do arquivo: ${result.error}`);
       return;
     }
-    // Link válido: se a aba nova não abriu (bloqueio de pop-up), navega na
-    // aba atual em vez de só mostrar erro.
-    if (janela) janela.location.href = result.url;
-    else window.location.href = result.url;
+    // Abre já com a URL final (nunca uma aba em branco pré-aberta) — algumas
+    // combinações de navegador/PDF viewer abrem o PDF numa aba própria mesmo
+    // quando se navega uma aba em branco existente, deixando essa em branco
+    // órfã. Se o pop-up for bloqueado, cai para a aba atual.
+    const janela = window.open(result.url, "_blank", "noopener,noreferrer");
+    if (!janela) window.location.href = result.url;
   }
 
   return (
