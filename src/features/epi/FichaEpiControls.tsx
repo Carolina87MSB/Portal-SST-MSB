@@ -48,12 +48,12 @@ export function FichaEpiControls({ ficha, entregas, colaborador, canEdit, onAnex
     // signed URL chega.
     const janela = window.open("", "_blank", "noopener,noreferrer");
     setAbrindo(true);
-    const url = await getFichaSignedUrl(ficha.assinaturaStoragePath);
+    const result = await getFichaSignedUrl(ficha.assinaturaStoragePath);
     setAbrindo(false);
-    if (url && janela) janela.location.href = url;
+    if (result.ok && janela) janela.location.href = result.url;
     else {
       janela?.close();
-      setErro("Falha ao gerar o link do arquivo — tente novamente.");
+      setErro(!result.ok ? `Falha ao gerar o link do arquivo: ${result.error}` : "Falha ao gerar o link do arquivo — tente novamente.");
     }
   }
 

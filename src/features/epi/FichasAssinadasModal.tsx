@@ -20,19 +20,25 @@ interface FichasAssinadasModalProps {
 export function FichasAssinadasModal({ colaboradorNome, colaborador, fichas, entregas, onClose }: FichasAssinadasModalProps) {
   const fichasOrdenadas = fichas.slice().sort((a, b) => (b.assinaturaAnexadaEm ?? "").localeCompare(a.assinaturaAnexadaEm ?? ""));
   const [abrindoPath, setAbrindoPath] = useState<string | null>(null);
+  const [erro, setErro] = useState<string | null>(null);
 
   async function handleVerAssinada(storagePath: string) {
     if (abrindoPath) return;
     const janela = window.open("", "_blank", "noopener,noreferrer");
     setAbrindoPath(storagePath);
-    const url = await getFichaSignedUrl(storagePath);
+    setErro(null);
+    const result = await getFichaSignedUrl(storagePath);
     setAbrindoPath(null);
-    if (url && janela) janela.location.href = url;
-    else janela?.close();
+    if (result.ok && janela) janela.location.href = result.url;
+    else {
+      janela?.close();
+      setErro(!result.ok ? `Falha ao gerar o link do arquivo: ${result.error}` : "Falha ao gerar o link do arquivo — tente novamente.");
+    }
   }
 
   return (
     <Modal title="Fichas de EPI assinadas" subtitle={colaboradorNome} onClose={onClose} width={560}>
+      {erro ? <div style={{ fontSize: 12, fontWeight: 600, color: "var(--color-danger, #99413a)", marginBottom: 10 }}>{erro}</div> : null}
       {fichasOrdenadas.length === 0 ? (
         <EmptyState title="Nenhuma ficha assinada ainda" description="Assim que uma ficha de entrega for gerada e a via assinada anexada, ela aparece aqui." />
       ) : (

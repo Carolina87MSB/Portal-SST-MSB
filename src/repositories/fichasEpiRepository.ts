@@ -247,14 +247,26 @@ export async function anexarAssinaturaFicha(fichaId: string, file: File, by: str
   return { ok: true, storagePath: path, anexadaEm };
 }
 
-/** Gera uma URL temporária (10 min) para baixar/visualizar a via assinada — o bucket é privado. */
-export async function getFichaSignedUrl(storagePath: string): Promise<string | null> {
-  if (!supabaseConfigured) return null;
-  const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(storagePath, 600);
-  if (error) {
+export type SignedUrlResult = { ok: true; url: string } | { ok: false; error: string };
+
+/** Gera uma URL temporária (10 min) para baixar/visualizar a via assinada — o bucket é privado.
+ * Retorna o erro real (não só null) para a UI poder mostrar a causa direto na tela, sem
+ * depender do console do navegador — createSignedUrl pode tanto resolver com um `error`
+ * quanto rejeitar a Promise (ex.: falha de rede), por isso o try/catch cobre os dois casos. */
+export async function getFichaSignedUrl(storagePath: string): Promise<SignedUrlResult> {
+  if (!supabaseConfigured) return { ok: false, error: "Supabase não configurado nesta instalação." };
+  try {
+    const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(storagePath, 600);
+    if (error) {
+      // eslint-disable-next-line no-console
+      console.error("[fichasEpiRepository] Falha ao gerar signed URL", { storagePath, error });
+      return { ok: false, error: error.message };
+    }
+    return { ok: true, url: data.signedUrl };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Erro desconhecido ao gerar o link.";
     // eslint-disable-next-line no-console
-    console.error("[fichasEpiRepository] Falha ao gerar signed URL", { storagePath, error });
-    return null;
+    console.error("[fichasEpiRepository] Exceção ao gerar signed URL", { storagePath, err });
+    return { ok: false, error: message };
   }
-  return data.signedUrl;
 }

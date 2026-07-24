@@ -91,12 +91,12 @@ export function ExameFichaDrawer({ colabId, onClose, abrirDesligarPendente }: Ex
     const janela = window.open("", "_blank", "noopener,noreferrer");
     setAbrindoPath(storagePath);
     setErroAnexo(null);
-    const url = await getAnexoSignedUrl(storagePath);
+    const result = await getAnexoSignedUrl(storagePath);
     setAbrindoPath(null);
-    if (url && janela) janela.location.href = url;
+    if (result.ok && janela) janela.location.href = result.url;
     else {
       janela?.close();
-      setErroAnexo("Falha ao gerar o link do arquivo — tente novamente.");
+      setErroAnexo(!result.ok ? `Falha ao gerar o link do arquivo: ${result.error}` : "Falha ao gerar o link do arquivo — tente novamente.");
     }
   }
 
