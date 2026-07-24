@@ -53,7 +53,9 @@ export function FichaEpiControls({ ficha, entregas, colaborador, canEdit, onAnex
     setAbrindo(true);
     try {
       const result = await abrirAnexoUmaVez(storagePath, () => getFichaSignedUrl(storagePath));
-      if ("error" in result) setErro(`Falha ao gerar o link do arquivo: ${result.error}`);
+      // DIAGNÓSTICO TEMPORÁRIO — remover depois de confirmar a causa da duplicação.
+      const diag = `[diagnóstico: chamadas=${result.chamadas} aberturas=${result.aberturas}]`;
+      setErro("error" in result ? `Falha ao gerar o link do arquivo: ${result.error} ${diag}` : diag);
     } finally {
       abrindoRef.current = false;
       setAbrindo(false);

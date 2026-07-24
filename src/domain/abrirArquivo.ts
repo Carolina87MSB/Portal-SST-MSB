@@ -10,7 +10,17 @@ const emAndamentoOuRecente = new Map<string, number>();
 
 const JANELA_DEDUP_MS = 3000;
 
-export type AbrirResultado = { ok: true } | { ok: false; error: string } | { ignorado: true };
+// DIAGNÓSTICO TEMPORÁRIO: conta quantas vezes abrirAnexoUmaVez() é chamada
+// desde que a página carregou, e quantas vezes window.open() de fato roda —
+// devolvido no resultado pra aparecer na tela sem precisar do DevTools.
+// Remover depois de confirmar a causa da duplicação.
+let totalChamadas = 0;
+let totalAberturas = 0;
+
+export type AbrirResultado =
+  | { ok: true; chamadas: number; aberturas: number }
+  | { ok: false; error: string; chamadas: number; aberturas: number }
+  | { ignorado: true; chamadas: number; aberturas: number };
 
 /** Gera a signed URL (via `gerarUrl`) e abre numa aba nova — se o navegador
  * bloquear o pop-up, navega na aba atual. Qualquer chamada para o MESMO
@@ -20,17 +30,19 @@ export async function abrirAnexoUmaVez(
   storagePath: string,
   gerarUrl: () => Promise<{ ok: true; url: string } | { ok: false; error: string }>,
 ): Promise<AbrirResultado> {
+  totalChamadas += 1;
   const agora = Date.now();
   const ultima = emAndamentoOuRecente.get(storagePath);
   if (ultima !== undefined && agora - ultima < JANELA_DEDUP_MS) {
-    return { ignorado: true };
+    return { ignorado: true, chamadas: totalChamadas, aberturas: totalAberturas };
   }
   emAndamentoOuRecente.set(storagePath, agora);
 
   const result = await gerarUrl();
-  if (!result.ok) return result;
+  if (!result.ok) return { ok: false, error: result.error, chamadas: totalChamadas, aberturas: totalAberturas };
 
+  totalAberturas += 1;
   const janela = window.open(result.url, "_blank", "noopener,noreferrer");
   if (!janela) window.location.href = result.url;
-  return { ok: true };
+  return { ok: true, chamadas: totalChamadas, aberturas: totalAberturas };
 }
