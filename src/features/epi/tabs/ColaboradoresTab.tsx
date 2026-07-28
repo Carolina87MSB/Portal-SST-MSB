@@ -6,7 +6,8 @@ import { usePortalStore } from "../../../store/PortalStoreContext";
 import { colaboradoresRepository } from "../../../repositories/colaboradoresRepository";
 import { portalRepository } from "../../../repositories/portalRepository";
 import { deptName, iniciais, maskCpf, titleCase } from "../../../domain/text";
-import { idadeFromISO } from "../../../domain/dates";
+import { idadeFromISO, stamp } from "../../../domain/dates";
+import { registrarLog } from "../../../repositories/logRepository";
 import { downloadCsv } from "../../../domain/csv";
 import { divergenciaEpiPara, matchesColaboradorSearch } from "../lib/epiUtils";
 import { EpiFichaDrawer } from "../EpiFichaDrawer";
@@ -53,7 +54,13 @@ export function ColaboradoresTab() {
     if (!user || editandoColabId == null) return { ok: false as const, error: "Sessão expirada — faça login novamente." };
     const result = await colaboradoresRepository.atualizarColaborador(editandoColabId, dados);
     if (!result.ok) return result;
-    dispatch({ type: "ATUALIZAR_DADOS_COLABORADOR", colabId: editandoColabId, ...dados, by: user.email });
+    dispatch({ type: "ATUALIZAR_DADOS_COLABORADOR", colabId: editandoColabId, ...dados });
+    // Usa o nome recém-editado direto (não uma busca em state.colaboradores,
+    // que neste ponto ainda reflete o nome ANTIGO — o dispatch acima é
+    // assíncrono/em lote, o estado só reflete a edição no próximo render).
+    const entry = { action: "Cadastro do colaborador atualizado", colabId: editandoColabId, colabNome: titleCase(dados.nome), detail: "", user: user.email, ts: stamp() };
+    dispatch({ type: "ADICIONAR_LOG_ENTRY", entry });
+    void registrarLog(entry);
     return { ok: true as const };
   }
 

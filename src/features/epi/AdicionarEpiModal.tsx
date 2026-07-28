@@ -6,7 +6,7 @@ import { LabeledField, TextInput } from "../../components/ui/Field";
 interface AdicionarEpiModalProps {
   nomesExistentes: string[];
   onClose: () => void;
-  onSave: (equip: string, valor: number, fornecedor: string, dataCotacaoIso: string) => void;
+  onSave: (equip: string, valor: number, fornecedor: string, dataCotacaoIso: string) => Promise<{ ok: true } | { ok: false; error: string }>;
 }
 
 /** Cadastro de um novo EPI diretamente no catálogo de Custos & valores — não
@@ -17,15 +17,24 @@ export function AdicionarEpiModal({ nomesExistentes, onClose, onSave }: Adiciona
   const [valorInput, setValorInput] = useState("");
   const [fornecedor, setFornecedor] = useState("");
   const [dataCotacao, setDataCotacao] = useState("");
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
 
   const nomeNormalizado = equip.trim().toLocaleLowerCase("pt-BR");
   const jaExiste = nomeNormalizado.length > 0 && nomesExistentes.some((n) => n.toLocaleLowerCase("pt-BR") === nomeNormalizado);
   const valorNumerico = Number(String(valorInput).replace(",", ".")) || 0;
-  const canSubmit = equip.trim().length > 0 && !jaExiste && valorNumerico > 0;
+  const canSubmit = equip.trim().length > 0 && !jaExiste && valorNumerico > 0 && !enviando;
 
-  function handleSubmit() {
+  async function handleSubmit() {
     if (!canSubmit) return;
-    onSave(equip.trim(), valorNumerico, fornecedor.trim(), dataCotacao);
+    setEnviando(true);
+    setErro(null);
+    const result = await onSave(equip.trim(), valorNumerico, fornecedor.trim(), dataCotacao);
+    setEnviando(false);
+    if (!result.ok) {
+      setErro(result.error);
+      return;
+    }
     onClose();
   }
 
@@ -40,11 +49,12 @@ export function AdicionarEpiModal({ nomesExistentes, onClose, onSave }: Adiciona
             Cancelar
           </Button>
           <Button disabled={!canSubmit} onClick={handleSubmit}>
-            Adicionar EPI
+            {enviando ? "Adicionando..." : "Adicionar EPI"}
           </Button>
         </>
       }
     >
+      {erro ? <div style={{ fontSize: 12, fontWeight: 600, color: "var(--color-danger, #99413a)", marginBottom: 10 }}>{erro}</div> : null}
       <LabeledField label="Nome do equipamento">
         <TextInput value={equip} onChange={(e) => setEquip(e.target.value)} placeholder="Ex.: Capacete de Segurança" autoFocus />
       </LabeledField>

@@ -7,8 +7,11 @@ import { useAuth } from "../../../auth/AuthContext";
 import { usePortalStore } from "../../../store/PortalStoreContext";
 import { portalRepository } from "../../../repositories/portalRepository";
 import { fmtMoney } from "../../../domain/text";
-import { isoToBR } from "../../../domain/dates";
+import { isoToBR, stamp } from "../../../domain/dates";
+import { criarLogEntry } from "../../../domain/logEntry";
 import { demandaPorEquip } from "../lib/epiUtils";
+import { editarPrecoEpi } from "../../../repositories/precosRepository";
+import { registrarLog } from "../../../repositories/logRepository";
 import shared from "../EpiShared.module.css";
 import styles from "./CustosTab.module.css";
 
@@ -63,28 +66,42 @@ export function CustosTab() {
 
   const linhaEditando = editando ? linhas.find((l) => l.equip === editando) : undefined;
 
-  function salvarPreco(valor: number, fornecedor: string, dataCotacaoIso: string) {
-    if (!user || !editando) return;
-    dispatch({
-      type: "EDITAR_PRECO_EPI",
-      equip: editando,
-      valor,
-      fornecedor,
-      dataCotacao: dataCotacaoIso ? isoToBR(dataCotacaoIso) : "",
-      by: user.email,
+  async function salvarPreco(valor: number, fornecedor: string, dataCotacaoIso: string) {
+    if (!user || !editando) return { ok: false as const, error: "Sessão expirada — faça login novamente." };
+    const dataCotacao = dataCotacaoIso ? isoToBR(dataCotacaoIso) : "";
+    const result = await editarPrecoEpi(editando, state.epiPrecos[editando], valor, fornecedor, dataCotacao);
+    if (!result.ok) return result;
+    dispatch({ type: "EDITAR_PRECO_EPI", equip: editando, preco: result.preco });
+    const entry = criarLogEntry({
+      action: "Preço de EPI atualizado",
+      colabId: null,
+      colaboradores: state.colaboradores,
+      detail: editando,
+      user: user.email,
+      ts: stamp(),
     });
+    dispatch({ type: "ADICIONAR_LOG_ENTRY", entry });
+    void registrarLog(entry);
+    return { ok: true as const };
   }
 
-  function adicionarEpi(equip: string, valor: number, fornecedor: string, dataCotacaoIso: string) {
-    if (!user) return;
-    dispatch({
-      type: "EDITAR_PRECO_EPI",
-      equip,
-      valor,
-      fornecedor,
-      dataCotacao: dataCotacaoIso ? isoToBR(dataCotacaoIso) : "",
-      by: user.email,
+  async function adicionarEpi(equip: string, valor: number, fornecedor: string, dataCotacaoIso: string) {
+    if (!user) return { ok: false as const, error: "Sessão expirada — faça login novamente." };
+    const dataCotacao = dataCotacaoIso ? isoToBR(dataCotacaoIso) : "";
+    const result = await editarPrecoEpi(equip, state.epiPrecos[equip], valor, fornecedor, dataCotacao);
+    if (!result.ok) return result;
+    dispatch({ type: "EDITAR_PRECO_EPI", equip, preco: result.preco });
+    const entry = criarLogEntry({
+      action: "Preço de EPI atualizado",
+      colabId: null,
+      colaboradores: state.colaboradores,
+      detail: equip,
+      user: user.email,
+      ts: stamp(),
     });
+    dispatch({ type: "ADICIONAR_LOG_ENTRY", entry });
+    void registrarLog(entry);
+    return { ok: true as const };
   }
 
   return (

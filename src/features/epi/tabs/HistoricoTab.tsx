@@ -8,6 +8,8 @@ import { parseBR } from "../../../domain/dates";
 import { matchesColaboradorSearch } from "../lib/epiUtils";
 import { FichaEpiControls } from "../FichaEpiControls";
 import { anexarAssinaturaFicha } from "../../../repositories/fichasEpiRepository";
+import { registrarLog } from "../../../repositories/logRepository";
+import { criarLogEntry } from "../../../domain/logEntry";
 import type { Colaborador, EntregaEpi, FichaEntregaEpi } from "../../../types/domain";
 import shared from "../EpiShared.module.css";
 import styles from "./HistoricoTab.module.css";
@@ -184,8 +186,20 @@ export function HistoricoTab() {
                       fileName: file.name,
                       storagePath: result.storagePath,
                       mime: file.type,
+                      anexadaEm: result.anexadaEm,
                       by: user.email,
                     });
+                    const fichaAtual = state.fichasEpi.find((f) => f.id === fichaId);
+                    const entry = criarLogEntry({
+                      action: "Ficha de EPI assinada anexada",
+                      colabId: fichaAtual?.colabId ?? null,
+                      colaboradores: state.colaboradores,
+                      detail: `${fichaAtual?.entregaIds.length ?? 0} item(ns)`,
+                      user: user.email,
+                      ts: result.anexadaEm,
+                    });
+                    dispatch({ type: "ADICIONAR_LOG_ENTRY", entry });
+                    void registrarLog(entry);
                     return { ok: true as const };
                   }}
                 />

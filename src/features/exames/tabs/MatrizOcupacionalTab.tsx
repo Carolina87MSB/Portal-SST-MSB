@@ -6,9 +6,13 @@ import { useAuth } from "../../../auth/AuthContext";
 import { usePortalStore } from "../../../store/PortalStoreContext";
 import { portalRepository } from "../../../repositories/portalRepository";
 import { fmtMoney, titleCase } from "../../../domain/text";
-import { isoToBR } from "../../../domain/dates";
+import { isoToBR, stamp } from "../../../domain/dates";
+import { criarLogEntry } from "../../../domain/logEntry";
 import { abreviaSituacao, periodicidadeInfo, todosOsCargos } from "../lib/exameUtils";
 import { AdicionarCargoModal } from "../AdicionarCargoModal";
+import { editarPrecoExame } from "../../../repositories/precosRepository";
+import { adicionarCargoMatriz } from "../../../repositories/matrizAddRepository";
+import { registrarLog } from "../../../repositories/logRepository";
 import type { CargoOcupacional } from "../../../types/domain";
 import shared from "../ExamesShared.module.css";
 import styles from "./MatrizOcupacionalTab.module.css";
@@ -49,21 +53,41 @@ export function MatrizOcupacionalTab() {
   const linhaEditando = editandoCodigo ? matriz.catalogoExames.find((c) => c.codigo === editandoCodigo) : undefined;
   const precoEditando = editandoCodigo ? state.examePrecos[editandoCodigo] : undefined;
 
-  function salvarPreco(valor: number, fornecedor: string, dataCotacaoIso: string) {
-    if (!user || !editandoCodigo) return;
-    dispatch({
-      type: "EDITAR_PRECO_EXAME",
-      codigo: editandoCodigo,
-      valor,
-      fornecedor,
-      dataCotacao: dataCotacaoIso ? isoToBR(dataCotacaoIso) : "",
-      by: user.email,
+  async function salvarPreco(valor: number, fornecedor: string, dataCotacaoIso: string) {
+    if (!user || !editandoCodigo) return { ok: false as const, error: "Sessão expirada — faça login novamente." };
+    const dataCotacao = dataCotacaoIso ? isoToBR(dataCotacaoIso) : "";
+    const result = await editarPrecoExame(editandoCodigo, state.examePrecos[editandoCodigo], valor, fornecedor, dataCotacao);
+    if (!result.ok) return result;
+    dispatch({ type: "EDITAR_PRECO_EXAME", codigo: editandoCodigo, preco: result.preco });
+    const entry = criarLogEntry({
+      action: "Preço de exame atualizado",
+      colabId: null,
+      colaboradores: state.colaboradores,
+      detail: editandoCodigo,
+      user: user.email,
+      ts: stamp(),
     });
+    dispatch({ type: "ADICIONAR_LOG_ENTRY", entry });
+    void registrarLog(entry);
+    return { ok: true as const };
   }
 
-  function handleAddCargo(cargo: CargoOcupacional) {
-    if (!user) return;
-    dispatch({ type: "ADICIONAR_CARGO_MATRIZ", cargo, by: user.email });
+  async function handleAddCargo(cargo: CargoOcupacional) {
+    if (!user) return { ok: false as const, error: "Sessão expirada — faça login novamente." };
+    const result = await adicionarCargoMatriz(cargo, user.email);
+    if (!result.ok) return result;
+    dispatch({ type: "ADICIONAR_CARGO_MATRIZ", cargo: result.cargo });
+    const entry = criarLogEntry({
+      action: "Cargo adicionado à matriz",
+      colabId: null,
+      colaboradores: state.colaboradores,
+      detail: result.cargo.nome,
+      user: user.email,
+      ts: result.cargo._ts ?? stamp(),
+    });
+    dispatch({ type: "ADICIONAR_LOG_ENTRY", entry });
+    void registrarLog(entry);
+    return { ok: true as const };
   }
 
   return (

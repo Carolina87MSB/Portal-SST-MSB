@@ -1,20 +1,6 @@
-import { stamp } from "../domain/dates";
-import { titleCase } from "../domain/text";
-import type { PrecoInfo } from "../types/domain";
 import type { PortalAction } from "./actions";
-import { buildInitialState, uid } from "./seed";
+import { buildInitialState } from "./seed";
 import type { PortalState } from "./types";
-
-function nomeDoColab(state: PortalState, colabId: number): string {
-  return titleCase(state.colaboradores.find((c) => c.id === colabId)?.nome ?? "");
-}
-
-function atualizarPreco(atual: PrecoInfo | undefined, valor: number, fornecedor: string, dataCotacao: string): PrecoInfo {
-  const historico = atual
-    ? [{ valor: atual.valor, fornecedor: atual.fornecedor, dataCotacao: atual.dataCotacao, ts: stamp() }, ...atual.historico]
-    : [];
-  return { valor, fornecedor, dataCotacao, historico };
-}
 
 export function portalReducer(state: PortalState, action: PortalAction): PortalState {
   switch (action.type) {
@@ -49,17 +35,38 @@ export function portalReducer(state: PortalState, action: PortalAction): PortalS
     case "SET_ANEXOS_EXAMES":
       return { ...state, attachments: action.attachments };
 
-    case "REGISTRAR_ENTREGA_EPI": {
-      const nome = nomeDoColab(state, action.entrega.colabId);
-      return {
-        ...state,
-        entregas: [action.entrega, ...state.entregas],
-        log: [
-          { action: "Entrega de EPI", colabId: action.entrega.colabId, colabNome: nome, detail: action.entrega.epi, user: action.by, ts: stamp() },
-          ...state.log,
-        ],
-      };
-    }
+    case "SET_FARDAMENTO_ENTREGAS":
+      return { ...state, fardamentoEntregas: action.fardamentoEntregas };
+
+    case "SET_FARDAMENTO_REPAROS":
+      return { ...state, fardamentoReparos: action.fardamentoReparos };
+
+    case "SET_EPI_PRECOS":
+      return { ...state, epiPrecos: action.epiPrecos };
+
+    case "SET_EXAME_PRECOS":
+      return { ...state, examePrecos: action.examePrecos };
+
+    case "SET_FARDAMENTO_PRECOS":
+      return { ...state, fardamentoPrecos: action.fardamentoPrecos };
+
+    case "SET_MATRIZ_ADD":
+      return { ...state, matrizAdd: action.matrizAdd };
+
+    case "SET_CUSTOS_EPI":
+      return { ...state, custosEpi: action.custosEpi };
+
+    case "SET_CUSTOS_FARDAMENTO":
+      return { ...state, custosFardamento: action.custosFardamento };
+
+    case "SET_LOG":
+      return { ...state, log: action.log };
+
+    case "ADICIONAR_LOG_ENTRY":
+      return { ...state, log: [action.entry, ...state.log] };
+
+    case "REGISTRAR_ENTREGA_EPI":
+      return { ...state, entregas: [action.entrega, ...state.entregas] };
 
     case "EDITAR_ENTREGA_EPI": {
       const entrega = state.entregas.find((e) => e.id === action.entregaId);
@@ -83,70 +90,22 @@ export function portalReducer(state: PortalState, action: PortalAction): PortalS
               }
             : e,
         ),
-        log: [
-          {
-            action: "Entrega de EPI editada",
-            colabId: entrega.colabId,
-            colabNome: nomeDoColab(state, entrega.colabId),
-            detail: action.epi,
-            user: action.by,
-            ts: stamp(),
-          },
-          ...state.log,
-        ],
       };
     }
 
     case "EXCLUIR_ENTREGA_EPI": {
       const entrega = state.entregas.find((e) => e.id === action.entregaId);
       if (!entrega || entrega.fichaId) return state;
-      return {
-        ...state,
-        entregas: state.entregas.filter((e) => e.id !== action.entregaId),
-        log: [
-          {
-            action: "Entrega de EPI excluída",
-            colabId: entrega.colabId,
-            colabNome: nomeDoColab(state, entrega.colabId),
-            detail: entrega.epi,
-            user: action.by,
-            ts: stamp(),
-          },
-          ...state.log,
-        ],
-      };
+      return { ...state, entregas: state.entregas.filter((e) => e.id !== action.entregaId) };
     }
 
-    case "EDITAR_PRECO_EPI": {
-      return {
-        ...state,
-        epiPrecos: {
-          ...state.epiPrecos,
-          [action.equip]: atualizarPreco(state.epiPrecos[action.equip], action.valor, action.fornecedor, action.dataCotacao),
-        },
-        log: [
-          { action: "Preço de EPI atualizado", colabId: null, colabNome: "", detail: action.equip, user: action.by, ts: stamp() },
-          ...state.log,
-        ],
-      };
-    }
+    case "EDITAR_PRECO_EPI":
+      return { ...state, epiPrecos: { ...state.epiPrecos, [action.equip]: action.preco } };
 
-    case "EDITAR_PRECO_EXAME": {
-      return {
-        ...state,
-        examePrecos: {
-          ...state.examePrecos,
-          [action.codigo]: atualizarPreco(state.examePrecos[action.codigo], action.valor, action.fornecedor, action.dataCotacao),
-        },
-        log: [
-          { action: "Preço de exame atualizado", colabId: null, colabNome: "", detail: action.codigo, user: action.by, ts: stamp() },
-          ...state.log,
-        ],
-      };
-    }
+    case "EDITAR_PRECO_EXAME":
+      return { ...state, examePrecos: { ...state.examePrecos, [action.codigo]: action.preco } };
 
     case "ANEXAR_EXAME": {
-      const nome = nomeDoColab(state, action.anexo.colabId);
       const colaboradores = state.colaboradores.map((c) => {
         if (c.id !== action.anexo.colabId) return c;
         const exames = c.exames.some((e) => e.proc === action.anexo.proc)
@@ -158,28 +117,14 @@ export function portalReducer(state: PortalState, action: PortalAction): PortalS
           : [...c.exames, { proc: action.anexo.proc, ultimo: action.anexo.dataISO, proximo: action.proximo, status: "Em dia" as const }];
         return { ...c, exames };
       });
-      return {
-        ...state,
-        colaboradores,
-        attachments: [action.anexo, ...state.attachments],
-        log: [
-          { action: "Exame anexado", colabId: action.anexo.colabId, colabNome: nome, detail: action.anexo.proc, user: action.by, ts: stamp() },
-          ...state.log,
-        ],
-      };
+      return { ...state, colaboradores, attachments: [action.anexo, ...state.attachments] };
     }
 
-    case "DESLIGAR_COLABORADOR": {
-      const nome = nomeDoColab(state, action.colabId);
+    case "DESLIGAR_COLABORADOR":
       return {
         ...state,
         desligados: { ...state.desligados, [action.colabId]: { date: action.date, motivo: action.motivo, by: action.by } },
-        log: [
-          { action: "Colaborador desligado", colabId: action.colabId, colabNome: nome, detail: action.motivo, user: action.by, ts: stamp() },
-          ...state.log,
-        ],
       };
-    }
 
     case "ATUALIZAR_DADOS_COLABORADOR": {
       const colaboradores = state.colaboradores.map((c) =>
@@ -187,14 +132,7 @@ export function portalReducer(state: PortalState, action: PortalAction): PortalS
           ? { ...c, cpf: action.cpf, nome: action.nome, cargo: action.cargo, departamento: action.departamento, nascimento: action.nascimento }
           : c,
       );
-      return {
-        ...state,
-        colaboradores,
-        log: [
-          { action: "Cadastro do colaborador atualizado", colabId: action.colabId, colabNome: titleCase(action.nome), detail: "", user: action.by, ts: stamp() },
-          ...state.log,
-        ],
-      };
+      return { ...state, colaboradores };
     }
 
     case "REINTEGRAR_COLABORADOR": {
@@ -202,97 +140,17 @@ export function portalReducer(state: PortalState, action: PortalAction): PortalS
       return { ...state, desligados: resto };
     }
 
-    case "ADICIONAR_CARGO_MATRIZ": {
-      const cargo = { ...action.cargo, _addedBy: action.by, _ts: stamp() };
-      return {
-        ...state,
-        matrizAdd: [...state.matrizAdd, cargo],
-        log: [
-          { action: "Cargo adicionado à matriz", colabId: null, colabNome: "", detail: cargo.nome, user: action.by, ts: stamp() },
-          ...state.log,
-        ],
-      };
-    }
+    case "ADICIONAR_CARGO_MATRIZ":
+      return { ...state, matrizAdd: [...state.matrizAdd, action.cargo] };
 
-    case "REGISTRAR_FARDAMENTO_ENTREGA": {
-      const colab = state.colaboradores.find((c) => c.id === action.colabId);
-      const entrega = {
-        id: uid("FE"),
-        colabId: action.colabId,
-        cpf: colab?.cpf ?? "",
-        tipo: action.tipo,
-        qtd: action.qtd,
-        tamanho: action.tamanho,
-        valorUnit: action.valorUnit,
-        fornecedor: action.fornecedor,
-        dataEntrega: action.dataEntrega,
-        dataCompra: action.dataCompra,
-        obs: action.obs,
-        responsavel: action.by,
-        ts: stamp(),
-      };
-      return {
-        ...state,
-        fardamentoEntregas: [entrega, ...state.fardamentoEntregas],
-        log: [
-          {
-            action: "Entrega de fardamento",
-            colabId: action.colabId,
-            colabNome: nomeDoColab(state, action.colabId),
-            detail: action.tipo,
-            user: action.by,
-            ts: stamp(),
-          },
-          ...state.log,
-        ],
-      };
-    }
+    case "REGISTRAR_FARDAMENTO_ENTREGA":
+      return { ...state, fardamentoEntregas: [action.entrega, ...state.fardamentoEntregas] };
 
-    case "REGISTRAR_FARDAMENTO_REPARO": {
-      const colab = state.colaboradores.find((c) => c.id === action.colabId);
-      const reparo = {
-        id: uid("FR"),
-        colabId: action.colabId,
-        cpf: colab?.cpf ?? "",
-        peca: action.peca,
-        tipoReparo: action.tipoReparo,
-        valor: action.valor,
-        fornecedor: action.fornecedor,
-        dataReparo: action.dataReparo,
-        obs: action.obs,
-        responsavel: action.by,
-        ts: stamp(),
-      };
-      return {
-        ...state,
-        fardamentoReparos: [reparo, ...state.fardamentoReparos],
-        log: [
-          {
-            action: "Reparo de fardamento",
-            colabId: action.colabId,
-            colabNome: nomeDoColab(state, action.colabId),
-            detail: action.tipoReparo,
-            user: action.by,
-            ts: stamp(),
-          },
-          ...state.log,
-        ],
-      };
-    }
+    case "REGISTRAR_FARDAMENTO_REPARO":
+      return { ...state, fardamentoReparos: [action.reparo, ...state.fardamentoReparos] };
 
-    case "EDITAR_PRECO_FARDAMENTO": {
-      return {
-        ...state,
-        fardamentoPrecos: {
-          ...state.fardamentoPrecos,
-          [action.tipo]: atualizarPreco(state.fardamentoPrecos[action.tipo], action.valor, action.fornecedor, action.dataCotacao),
-        },
-        log: [
-          { action: "Preço de fardamento atualizado", colabId: null, colabNome: "", detail: action.tipo, user: action.by, ts: stamp() },
-          ...state.log,
-        ],
-      };
-    }
+    case "EDITAR_PRECO_FARDAMENTO":
+      return { ...state, fardamentoPrecos: { ...state.fardamentoPrecos, [action.tipo]: action.preco } };
 
     case "GERAR_FICHA_EPI": {
       // Agrupa todas as entregas do "lote aberto" (ainda sem fichaId) informadas
@@ -312,24 +170,13 @@ export function portalReducer(state: PortalState, action: PortalAction): PortalS
         numero: action.numero,
         colabId: action.colabId,
         entregaIds: [...idsValidos],
-        geradaEm: stamp(),
+        geradaEm: action.geradaEm,
         geradaPor: action.by,
       };
       return {
         ...state,
         entregas: state.entregas.map((e) => (idsValidos.has(e.id) ? { ...e, fichaId: ficha.id } : e)),
         fichasEpi: [ficha, ...state.fichasEpi],
-        log: [
-          {
-            action: "Ficha de entrega de EPI gerada",
-            colabId: action.colabId,
-            colabNome: nomeDoColab(state, action.colabId),
-            detail: `${idsValidos.size} item(ns)`,
-            user: action.by,
-            ts: stamp(),
-          },
-          ...state.log,
-        ],
       };
     }
 
@@ -345,22 +192,11 @@ export function portalReducer(state: PortalState, action: PortalAction): PortalS
                 assinaturaFileName: action.fileName,
                 assinaturaStoragePath: action.storagePath,
                 assinaturaMime: action.mime,
-                assinaturaAnexadaEm: stamp(),
+                assinaturaAnexadaEm: action.anexadaEm,
                 assinaturaResponsavel: action.by,
               }
             : f,
         ),
-        log: [
-          {
-            action: "Ficha de EPI assinada anexada",
-            colabId: ficha.colabId,
-            colabNome: nomeDoColab(state, ficha.colabId),
-            detail: `${ficha.entregaIds.length} item(ns)`,
-            user: action.by,
-            ts: stamp(),
-          },
-          ...state.log,
-        ],
       };
     }
 

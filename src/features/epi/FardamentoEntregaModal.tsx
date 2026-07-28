@@ -25,7 +25,7 @@ interface FardamentoEntregaModalProps {
   tipoOptions: string[];
   fardamentoPrecos: Record<string, PrecoInfo>;
   onClose: () => void;
-  onSave: (payload: FardamentoEntregaPayload) => void;
+  onSave: (payload: FardamentoEntregaPayload) => Promise<{ ok: true } | { ok: false; error: string }>;
 }
 
 /** Modal de registro de entrega de fardamento — independente da matriz de EPI. */
@@ -40,6 +40,8 @@ export function FardamentoEntregaModal({ colaboradores, tipoOptions, fardamentoP
   const [dataEntregaIso, setDataEntregaIso] = useState("");
   const [dataCompraIso, setDataCompraIso] = useState("");
   const [obs, setObs] = useState("");
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
 
   const tipoFinal = tipoSelecionado === OUTRO_VALUE ? tipoCustom.trim() : tipoSelecionado;
 
@@ -53,11 +55,13 @@ export function FardamentoEntregaModal({ colaboradores, tipoOptions, fardamentoP
 
   const qtdNumerica = Number(qtd) || 0;
   const valorNumerico = Number(String(valorUnit).replace(",", ".")) || 0;
-  const canSubmit = colabId != null && tipoFinal.length > 0 && qtdNumerica > 0 && dataEntregaIso.length > 0;
+  const canSubmit = colabId != null && tipoFinal.length > 0 && qtdNumerica > 0 && dataEntregaIso.length > 0 && !enviando;
 
-  function handleSubmit() {
+  async function handleSubmit() {
     if (!canSubmit || colabId == null) return;
-    onSave({
+    setEnviando(true);
+    setErro(null);
+    const result = await onSave({
       colabId,
       tipo: tipoFinal,
       qtd: qtdNumerica,
@@ -68,6 +72,11 @@ export function FardamentoEntregaModal({ colaboradores, tipoOptions, fardamentoP
       dataCompra: dataCompraIso ? isoToBR(dataCompraIso) : "—",
       obs: obs.trim(),
     });
+    setEnviando(false);
+    if (!result.ok) {
+      setErro(result.error);
+      return;
+    }
     onClose();
   }
 
@@ -81,11 +90,12 @@ export function FardamentoEntregaModal({ colaboradores, tipoOptions, fardamentoP
             Cancelar
           </Button>
           <Button disabled={!canSubmit} onClick={handleSubmit}>
-            Registrar entrega
+            {enviando ? "Registrando..." : "Registrar entrega"}
           </Button>
         </>
       }
     >
+      {erro ? <div style={{ fontSize: 12, fontWeight: 600, color: "var(--color-danger, #99413a)", marginBottom: 10 }}>{erro}</div> : null}
       <LabeledField label="Colaborador">
         <ColaboradorPicker colaboradores={colaboradores} value={colabId} onChange={setColabId} />
       </LabeledField>

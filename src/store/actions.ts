@@ -4,22 +4,41 @@ import type {
   Colaborador,
   DesligamentoPendente,
   EntregaEpi,
+  FardamentoEntrega,
+  FardamentoReparo,
   FichaEntregaEpi,
+  LogEntry,
+  PrecoInfo,
 } from "../types/domain";
+import type { CustoMesEpi, CustoMesFardamento } from "./types";
 
 export type PortalAction =
   | { type: "SET_COLABORADORES"; colaboradores: Colaborador[] }
   | { type: "SET_DESLIGAMENTOS_PENDENTES"; desligamentosPendentes: DesligamentoPendente[] }
   | { type: "REMOVER_DESLIGAMENTO_PENDENTE"; colaboradorNome: string }
-  // Entregas/fichas de EPI e anexos de exame agora são carregados do Supabase
-  // (ver anexosExamesRepository.ts / fichasEpiRepository.ts) assim que a
-  // sessão é confirmada — mesmo padrão de SET_COLABORADORES.
+  // Todo o estado abaixo (entregas/fichas EPI, anexos, fardamento, preços,
+  // matriz, custos, log) é carregado do Supabase assim que a sessão é
+  // confirmada (ver PortalStoreContext.tsx) — mesmo padrão de SET_COLABORADORES.
   | { type: "SET_ENTREGAS_EPI"; entregas: EntregaEpi[] }
   | { type: "SET_FICHAS_EPI"; fichasEpi: FichaEntregaEpi[] }
   | { type: "SET_ANEXOS_EXAMES"; attachments: AttachmentExame[] }
+  | { type: "SET_FARDAMENTO_ENTREGAS"; fardamentoEntregas: FardamentoEntrega[] }
+  | { type: "SET_FARDAMENTO_REPAROS"; fardamentoReparos: FardamentoReparo[] }
+  | { type: "SET_EPI_PRECOS"; epiPrecos: Record<string, PrecoInfo> }
+  | { type: "SET_EXAME_PRECOS"; examePrecos: Record<string, PrecoInfo> }
+  | { type: "SET_FARDAMENTO_PRECOS"; fardamentoPrecos: Record<string, PrecoInfo> }
+  | { type: "SET_MATRIZ_ADD"; matrizAdd: CargoOcupacional[] }
+  | { type: "SET_CUSTOS_EPI"; custosEpi: CustoMesEpi[] }
+  | { type: "SET_CUSTOS_FARDAMENTO"; custosFardamento: CustoMesFardamento[] }
+  | { type: "SET_LOG"; log: LogEntry[] }
+  // Toda ação que antes prependia uma entrada de log direto no reducer agora
+  // despacha essa entrada explicitamente (o registro em si já foi gravado no
+  // Supabase via logRepository.registrarLog — ver os call sites) — reforça
+  // que o log é só mais um dado persistido, igual aos outros.
+  | { type: "ADICIONAR_LOG_ENTRY"; entry: LogEntry }
   // `entrega` já vem persistida (ver fichasEpiRepository.registrarEntregaEpi) — o
-  // reducer só precisa somar ao estado local e registrar no log.
-  | { type: "REGISTRAR_ENTREGA_EPI"; entrega: EntregaEpi; by: string }
+  // reducer só precisa somar ao estado local.
+  | { type: "REGISTRAR_ENTREGA_EPI"; entrega: EntregaEpi }
   | {
       type: "EDITAR_ENTREGA_EPI";
       entregaId: string;
@@ -31,16 +50,15 @@ export type PortalAction =
       dataEntrega: string;
       dataTroca: string;
       obs: string;
-      by: string;
     }
-  | { type: "EXCLUIR_ENTREGA_EPI"; entregaId: string; by: string }
-  | { type: "EDITAR_PRECO_EPI"; equip: string; valor: number; fornecedor: string; dataCotacao: string; by: string }
-  | { type: "EDITAR_PRECO_EXAME"; codigo: string; valor: number; fornecedor: string; dataCotacao: string; by: string }
+  | { type: "EXCLUIR_ENTREGA_EPI"; entregaId: string }
+  | { type: "EDITAR_PRECO_EPI"; equip: string; preco: PrecoInfo }
+  | { type: "EDITAR_PRECO_EXAME"; codigo: string; preco: PrecoInfo }
+  | { type: "EDITAR_PRECO_FARDAMENTO"; tipo: string; preco: PrecoInfo }
   // `anexo` já vem persistido (ver anexosExamesRepository.anexarExame) — o
-  // reducer só precisa somar ao estado local, patchar colaboradores.exames
-  // (localmente — a gravação real já aconteceu via api/atualizar-exame) e
-  // registrar no log.
-  | { type: "ANEXAR_EXAME"; anexo: AttachmentExame; proximo: string; by: string }
+  // reducer só precisa somar ao estado local e patchar colaboradores.exames
+  // (localmente — a gravação real já aconteceu via api/atualizar-exame).
+  | { type: "ANEXAR_EXAME"; anexo: AttachmentExame; proximo: string }
   | { type: "DESLIGAR_COLABORADOR"; colabId: number; date: string; motivo: string; by: string }
   | {
       type: "ATUALIZAR_DADOS_COLABORADOR";
@@ -50,35 +68,14 @@ export type PortalAction =
       cargo: string;
       departamento: string;
       nascimento: string;
-      by: string;
     }
   | { type: "REINTEGRAR_COLABORADOR"; colabId: number; by: string }
-  | { type: "ADICIONAR_CARGO_MATRIZ"; cargo: CargoOcupacional; by: string }
-  | {
-      type: "REGISTRAR_FARDAMENTO_ENTREGA";
-      colabId: number;
-      tipo: string;
-      qtd: number;
-      tamanho: string;
-      valorUnit: number;
-      fornecedor: string;
-      dataEntrega: string;
-      dataCompra: string;
-      obs: string;
-      by: string;
-    }
-  | {
-      type: "REGISTRAR_FARDAMENTO_REPARO";
-      colabId: number;
-      peca: string;
-      tipoReparo: string;
-      valor: number;
-      fornecedor: string;
-      dataReparo: string;
-      obs: string;
-      by: string;
-    }
-  | { type: "EDITAR_PRECO_FARDAMENTO"; tipo: string; valor: number; fornecedor: string; dataCotacao: string; by: string }
-  | { type: "GERAR_FICHA_EPI"; fichaId: string; numero: number; colabId: number; entregaIds: string[]; by: string }
-  | { type: "ANEXAR_FICHA_EPI_ASSINADA"; fichaId: string; fileName: string; storagePath: string; mime: string; by: string }
+  // `cargo` já vem persistido (ver matrizAddRepository.adicionarCargoMatriz),
+  // com _addedBy/_ts já preenchidos.
+  | { type: "ADICIONAR_CARGO_MATRIZ"; cargo: CargoOcupacional }
+  // `entrega`/`reparo` já vêm persistidos (ver fardamentoRepository.ts).
+  | { type: "REGISTRAR_FARDAMENTO_ENTREGA"; entrega: FardamentoEntrega }
+  | { type: "REGISTRAR_FARDAMENTO_REPARO"; reparo: FardamentoReparo }
+  | { type: "GERAR_FICHA_EPI"; fichaId: string; numero: number; colabId: number; entregaIds: string[]; geradaEm: string; by: string }
+  | { type: "ANEXAR_FICHA_EPI_ASSINADA"; fichaId: string; fileName: string; storagePath: string; mime: string; anexadaEm: string; by: string }
   | { type: "RESET" };

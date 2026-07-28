@@ -75,6 +75,18 @@ Antes, todo anexo (exame ocupacional, ficha de EPI assinada) virava base64 e fic
 
 As 3 tabelas novas têm RLS permissiva para `authenticated` (mesma regra de acesso que já existia: qualquer conta do portal é RH, não há distinção de perfil aqui) — ver os `create policy ... for all to authenticated` no fim de `supabase/schema.sql`. Rode o schema atualizado no Supabase Dashboard (idempotente, pode rodar de novo com segurança) antes de usar essas telas em produção; sem isso, os uploads falham com erro visível na tela (não silenciosamente).
 
+### Fardamento, preços, matriz adicionada, custos e log — também migrados do localStorage
+
+Na mesma linha da seção acima: fardamento (entregas/reparos), os catálogos de preço (EPI/exame/fardamento), os cargos que o RH adiciona manualmente à matriz ocupacional e o log de auditoria existiam só no `localStorage` — limpar o cache do navegador apagava esses dados permanentemente, sem qualquer aviso. Agora tudo isso também é persistido no Supabase:
+
+- **`sst_fardamento_entregas`** / **`sst_fardamento_reparos`** — histórico imutável, mesmo padrão de `sst_entregas_epi` (`src/repositories/fardamentoRepository.ts`).
+- **`sst_epi_precos`** / **`sst_exame_precos`** / **`sst_fardamento_precos`** — catálogo de preços editável pelo RH, uma linha por chave de negócio (equip/código/tipo) com o histórico de cotações guardado como `jsonb` na própria linha (`src/repositories/precosRepository.ts`). O "valor de fábrica" continua vindo do catálogo estático (`portalRepository`) — ao carregar, o app mescla catálogo estático + o que já foi editado no Supabase, chave a chave, para uma chave nunca editada continuar aparecendo com o valor padrão em vez de sumir.
+- **`sst_matriz_add_cargos`** — cargos adicionados manualmente à matriz ocupacional, além do catálogo estático (`src/repositories/matrizAddRepository.ts`).
+- **`sst_custos_epi_mes`** / **`sst_custos_fardamento_mes`** — orçamento mensal usado no gráfico "orçado × realizado" do Dashboard. Só leitura por ora: não existe (nem existia antes, em localStorage) uma tela para o RH lançar esses valores; as tabelas já ficam prontas para quando essa tela for construída.
+- **`sst_log`** — log de auditoria (append-only: a policy de RLS só libera `insert`/`select`, sem `update`/`delete`, reforçando no banco a garantia que antes só existia por convenção no reducer). Toda ação do RH que gera uma linha de log (entrega/edição/exclusão de EPI, anexo de exame, desligamento, edição de cadastro, preço editado, cargo adicionado, ficha gerada/assinada) grava direto nessa tabela via `src/repositories/logRepository.ts`, além de atualizar o estado local na hora (`ADICIONAR_LOG_ENTRY`) para feedback imediato na tela.
+
+Rode o schema atualizado no Supabase Dashboard antes de usar essas telas em produção (mesmo aviso da seção anterior — idempotente, seguro rodar de novo).
+
 ## Arquitetura
 
 ```
@@ -95,9 +107,11 @@ src/
     portalRepository.ts          catálogos e matrizes estáticos, sem dado pessoal (JSON no bundle)
   domain/                  regras de negócio puras (status de exame, datas, textos/máscaras, matriz
                            função → EPI/exames) — testáveis isoladamente, sem React
-  store/                   estado editável (entregas, anexos, preços, desligamentos) via
-                           useReducer + Context; carrega colaboradores do Supabase ao logar e
-                           limpa tudo (memória + localStorage) ao deslogar
+  store/                   estado via useReducer + Context; carrega tudo do Supabase ao logar
+                           (colaboradores, entregas/fichas/anexos, fardamento, preços, matriz
+                           adicionada, custos, log) e limpa tudo (memória + localStorage) ao
+                           deslogar — localStorage é só um cache de leitura rápida entre
+                           carregamentos, nunca a fonte da verdade
   auth/                    Supabase Auth (magic link) + guarda de rotas
   components/ui/           design system (Card, KpiCard, StatusBadge, Table, Modal, Drawer, ...)
   components/layout/       casca do app (Sidebar, Header, AppShell)
@@ -120,7 +134,7 @@ Princípios seguidos:
 - **Inversão de dependência de dados**: nenhuma tela busca dados diretamente — tudo passa por um repositório (`colaboradoresRepository` ou `portalRepository`), então trocar a fonte de novo é uma mudança isolada num arquivo.
 - **Lógica de negócio fora do React**: cálculo de status de exame (`Em dia/A vencer/Vencido/Necessita revisão`), idade, máscaras de CPF, matching de cargo→matriz etc. vivem em `src/domain/*.ts` como funções puras, sem hooks — fáceis de testar unitariamente.
 - **Status sempre recalculado, nunca lido como valor congelado**: o campo `status` importado da planilha original é ignorado; tudo é recomputado a partir da data de hoje, então o portal continua correto conforme o tempo passa.
-- **Estado editável separado da base de origem**: entregas de EPI, anexos de exame, preços e desligamentos vivem em `PortalStoreContext` (reducer com ações tipadas) e nunca sobrescrevem os dados de origem — mesmo padrão do protótipo original ("nunca substitui, sempre adiciona").
+- **Estado editável separado da base de origem**: entregas de EPI/fardamento, anexos de exame, preços, cargos adicionados e desligamentos vivem em `PortalStoreContext` (reducer com ações tipadas), persistidos no Supabase, e nunca sobrescrevem os dados de origem — mesmo padrão do protótipo original ("nunca substitui, sempre adiciona").
 
 ## Dados e privacidade (LGPD)
 
@@ -136,8 +150,7 @@ A base de colaboradores contém **dados reais**: nome completo, CPF, data de nas
 Próximos incrementos de segurança sugeridos (fora do escopo atual):
 
 1. Tabela `profiles` associando usuário Supabase → papel (`rh` / `leitura`), hoje todo usuário autenticado é tratado como RH.
-2. Mover também o estado editável (entregas, anexos, preços, log) do `localStorage` para tabelas no Supabase — hoje só a leitura de colaboradores e o status de desligamento (`desligado`/`data_desligamento`/`motivo_desligamento`, direto na tabela `colaboradores`) foram migrados; ver `src/store/PortalStoreContext.tsx`.
-3. Logging/auditoria server-side das ações do RH (hoje a trilha em **Exames → Histórico** é local ao navegador).
+2. Tela de lançamento para `sst_custos_epi_mes` / `sst_custos_fardamento_mes` (orçamento mensal usado no gráfico "orçado × realizado" do Dashboard) — as tabelas já existem no Supabase e são lidas, mas ainda não há UI para o RH editar esses valores; hoje ficam vazias.
 
 ## Funcionalidades não implementadas (fora de escopo desta etapa)
 

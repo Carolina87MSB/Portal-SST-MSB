@@ -11,6 +11,8 @@ import { ExameFichaDrawer } from "../ExameFichaDrawer";
 import { AnexarExameModal } from "../AnexarExameModal";
 import type { AnexarExamePayload } from "../AnexarExameModal";
 import { anexarExame } from "../../../repositories/anexosExamesRepository";
+import { registrarLog } from "../../../repositories/logRepository";
+import { criarLogEntry } from "../../../domain/logEntry";
 import type { Colaborador, ExameRegistro } from "../../../types/domain";
 import shared from "../ExamesShared.module.css";
 import styles from "./ProximosTab.module.css";
@@ -56,7 +58,17 @@ export function ProximosTab() {
       by: user.email,
     });
     if (!result.ok) return result;
-    dispatch({ type: "ANEXAR_EXAME", anexo: result.anexo, proximo: payload.proximo, by: user.email });
+    dispatch({ type: "ANEXAR_EXAME", anexo: result.anexo, proximo: payload.proximo });
+    const entry = criarLogEntry({
+      action: "Exame anexado",
+      colabId: payload.colabId,
+      colaboradores: state.colaboradores,
+      detail: payload.proc,
+      user: user.email,
+      ts: result.anexo.ts,
+    });
+    dispatch({ type: "ADICIONAR_LOG_ENTRY", entry });
+    void registrarLog(entry);
     return { ok: true as const };
   }
 

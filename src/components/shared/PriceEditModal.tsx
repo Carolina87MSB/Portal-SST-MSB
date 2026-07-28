@@ -14,7 +14,7 @@ interface PriceEditModalProps {
   dataCotacao: string;
   historico: PrecoHistoricoItem[];
   onClose: () => void;
-  onSave: (valor: number, fornecedor: string, dataCotacao: string) => void;
+  onSave: (valor: number, fornecedor: string, dataCotacao: string) => Promise<{ ok: true } | { ok: false; error: string }>;
 }
 
 /** Modal genérico de edição de valor unitário — usado para EPI, exames e fardamento. */
@@ -31,13 +31,22 @@ export function PriceEditModal({
   const [valorInput, setValorInput] = useState(String(valor || ""));
   const [fornecedorInput, setFornecedorInput] = useState(fornecedor);
   const [dataInput, setDataInput] = useState(dataCotacao);
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
 
   const valorNumerico = Number(String(valorInput).replace(",", ".")) || 0;
-  const canSubmit = valorNumerico > 0;
+  const canSubmit = valorNumerico > 0 && !enviando;
 
-  function handleSubmit() {
+  async function handleSubmit() {
     if (!canSubmit) return;
-    onSave(valorNumerico, fornecedorInput.trim(), dataInput);
+    setEnviando(true);
+    setErro(null);
+    const result = await onSave(valorNumerico, fornecedorInput.trim(), dataInput);
+    setEnviando(false);
+    if (!result.ok) {
+      setErro(result.error);
+      return;
+    }
     onClose();
   }
 
@@ -52,11 +61,12 @@ export function PriceEditModal({
             Cancelar
           </Button>
           <Button disabled={!canSubmit} onClick={handleSubmit}>
-            Salvar valor
+            {enviando ? "Salvando..." : "Salvar valor"}
           </Button>
         </>
       }
     >
+      {erro ? <div style={{ fontSize: 12, fontWeight: 600, color: "var(--color-danger, #99413a)", marginBottom: 10 }}>{erro}</div> : null}
       <LabeledField label="Valor unitário (R$)">
         <TextInput
           inputMode="decimal"

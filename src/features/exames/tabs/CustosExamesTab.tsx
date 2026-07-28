@@ -6,7 +6,10 @@ import { useAuth } from "../../../auth/AuthContext";
 import { usePortalStore } from "../../../store/PortalStoreContext";
 import { portalRepository } from "../../../repositories/portalRepository";
 import { fmtMoney } from "../../../domain/text";
-import { isoToBR } from "../../../domain/dates";
+import { isoToBR, stamp } from "../../../domain/dates";
+import { criarLogEntry } from "../../../domain/logEntry";
+import { editarPrecoExame } from "../../../repositories/precosRepository";
+import { registrarLog } from "../../../repositories/logRepository";
 import shared from "../ExamesShared.module.css";
 import styles from "./CustosExamesTab.module.css";
 
@@ -59,16 +62,23 @@ export function CustosExamesTab() {
 
   const linhaEditando = editando ? linhas.find((l) => l.codigo === editando) : undefined;
 
-  function salvarPreco(valor: number, fornecedor: string, dataCotacaoIso: string) {
-    if (!user || !editando) return;
-    dispatch({
-      type: "EDITAR_PRECO_EXAME",
-      codigo: editando,
-      valor,
-      fornecedor,
-      dataCotacao: dataCotacaoIso ? isoToBR(dataCotacaoIso) : "",
-      by: user.email,
+  async function salvarPreco(valor: number, fornecedor: string, dataCotacaoIso: string) {
+    if (!user || !editando) return { ok: false as const, error: "Sessão expirada — faça login novamente." };
+    const dataCotacao = dataCotacaoIso ? isoToBR(dataCotacaoIso) : "";
+    const result = await editarPrecoExame(editando, state.examePrecos[editando], valor, fornecedor, dataCotacao);
+    if (!result.ok) return result;
+    dispatch({ type: "EDITAR_PRECO_EXAME", codigo: editando, preco: result.preco });
+    const entry = criarLogEntry({
+      action: "Preço de exame atualizado",
+      colabId: null,
+      colaboradores: state.colaboradores,
+      detail: editando,
+      user: user.email,
+      ts: stamp(),
     });
+    dispatch({ type: "ADICIONAR_LOG_ENTRY", entry });
+    void registrarLog(entry);
+    return { ok: true as const };
   }
 
   return (

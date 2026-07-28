@@ -19,7 +19,7 @@ export interface FardamentoReparoPayload {
 interface FardamentoReparoModalProps {
   colaboradores: Colaborador[];
   onClose: () => void;
-  onSave: (payload: FardamentoReparoPayload) => void;
+  onSave: (payload: FardamentoReparoPayload) => Promise<{ ok: true } | { ok: false; error: string }>;
 }
 
 /** Modal de registro de reparo de fardamento — cada lançamento é um registro independente. */
@@ -31,13 +31,17 @@ export function FardamentoReparoModal({ colaboradores, onClose, onSave }: Fardam
   const [fornecedor, setFornecedor] = useState("");
   const [dataReparoIso, setDataReparoIso] = useState("");
   const [obs, setObs] = useState("");
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
 
   const valorNumerico = Number(String(valor).replace(",", ".")) || 0;
-  const canSubmit = colabId != null && peca.trim().length > 0 && tipoReparo.trim().length > 0 && dataReparoIso.length > 0;
+  const canSubmit = colabId != null && peca.trim().length > 0 && tipoReparo.trim().length > 0 && dataReparoIso.length > 0 && !enviando;
 
-  function handleSubmit() {
+  async function handleSubmit() {
     if (!canSubmit || colabId == null) return;
-    onSave({
+    setEnviando(true);
+    setErro(null);
+    const result = await onSave({
       colabId,
       peca: peca.trim(),
       tipoReparo: tipoReparo.trim(),
@@ -46,6 +50,11 @@ export function FardamentoReparoModal({ colaboradores, onClose, onSave }: Fardam
       dataReparo: isoToBR(dataReparoIso),
       obs: obs.trim(),
     });
+    setEnviando(false);
+    if (!result.ok) {
+      setErro(result.error);
+      return;
+    }
     onClose();
   }
 
@@ -59,11 +68,12 @@ export function FardamentoReparoModal({ colaboradores, onClose, onSave }: Fardam
             Cancelar
           </Button>
           <Button disabled={!canSubmit} onClick={handleSubmit}>
-            Registrar reparo
+            {enviando ? "Registrando..." : "Registrar reparo"}
           </Button>
         </>
       }
     >
+      {erro ? <div style={{ fontSize: 12, fontWeight: 600, color: "var(--color-danger, #99413a)", marginBottom: 10 }}>{erro}</div> : null}
       <LabeledField label="Colaborador">
         <ColaboradorPicker colaboradores={colaboradores} value={colabId} onChange={setColabId} />
       </LabeledField>

@@ -5,7 +5,7 @@ import { useAuth } from "../../auth/AuthContext";
 import { usePortalStore } from "../../store/PortalStoreContext";
 import { portalRepository } from "../../repositories/portalRepository";
 import { deptName, fmtMoney, iniciais, maskCpf, titleCase } from "../../domain/text";
-import { idadeFromISO, isoToBR } from "../../domain/dates";
+import { idadeFromISO, isoToBR, stamp } from "../../domain/dates";
 import { matrizEpiParaColaborador } from "../../domain/matriz";
 import { baixarFichaEntregaEpiPdf } from "../../domain/pdf/fichaEntregaEpi";
 import { codigoFichaEpi, statusFichaEpi } from "../../domain/fichaAssinatura";
@@ -23,6 +23,8 @@ import {
   gerarFichaEpi,
   registrarEntregaEpi,
 } from "../../repositories/fichasEpiRepository";
+import { registrarLog } from "../../repositories/logRepository";
+import { criarLogEntry } from "../../domain/logEntry";
 import type { EntregaEpi } from "../../types/domain";
 import styles from "./EpiFichaDrawer.module.css";
 
@@ -95,7 +97,17 @@ export function EpiFichaDrawer({ colabId, onClose }: EpiFichaDrawerProps) {
       assinatura: titleCase(colaborador.nome),
     });
     if (!result.ok) return result;
-    dispatch({ type: "REGISTRAR_ENTREGA_EPI", entrega: result.entrega, by: user.email });
+    dispatch({ type: "REGISTRAR_ENTREGA_EPI", entrega: result.entrega });
+    const entry = criarLogEntry({
+      action: "Entrega de EPI",
+      colabId,
+      colaboradores: state.colaboradores,
+      detail: payload.epi,
+      user: user.email,
+      ts: result.entrega.ts,
+    });
+    dispatch({ type: "ADICIONAR_LOG_ENTRY", entry });
+    void registrarLog(entry);
     return { ok: true as const };
   }
 
@@ -114,16 +126,36 @@ export function EpiFichaDrawer({ colabId, onClose }: EpiFichaDrawerProps) {
       dataEntrega: payload.dataEntrega,
       dataTroca: payload.dataTroca,
       obs: payload.obs,
-      by: user.email,
     });
+    const entry = criarLogEntry({
+      action: "Entrega de EPI editada",
+      colabId,
+      colaboradores: state.colaboradores,
+      detail: payload.epi,
+      user: user.email,
+      ts: stamp(),
+    });
+    dispatch({ type: "ADICIONAR_LOG_ENTRY", entry });
+    void registrarLog(entry);
     return { ok: true as const };
   }
 
   async function handleExcluirEntrega(entregaId: string) {
     if (!user) return { ok: false as const, error: "Sessão expirada — faça login novamente." };
+    const entregaAtual = entregas.find((e) => e.id === entregaId);
     const result = await excluirEntregaEpi(entregaId);
     if (!result.ok) return result;
-    dispatch({ type: "EXCLUIR_ENTREGA_EPI", entregaId, by: user.email });
+    dispatch({ type: "EXCLUIR_ENTREGA_EPI", entregaId });
+    const entry = criarLogEntry({
+      action: "Entrega de EPI excluída",
+      colabId,
+      colaboradores: state.colaboradores,
+      detail: entregaAtual?.epi ?? "",
+      user: user.email,
+      ts: stamp(),
+    });
+    dispatch({ type: "ADICIONAR_LOG_ENTRY", entry });
+    void registrarLog(entry);
     return { ok: true as const };
   }
 
@@ -143,14 +175,43 @@ export function EpiFichaDrawer({ colabId, onClose }: EpiFichaDrawerProps) {
       return;
     }
     baixarFichaEntregaEpiPdf(entregasAbertas, colaborador, { id: fichaId, numero, geradaEm: result.geradaEm, geradaPor: user.email });
-    dispatch({ type: "GERAR_FICHA_EPI", fichaId, numero, colabId, entregaIds, by: user.email });
+    dispatch({ type: "GERAR_FICHA_EPI", fichaId, numero, colabId, entregaIds, geradaEm: result.geradaEm, by: user.email });
+    const entry = criarLogEntry({
+      action: "Ficha de entrega de EPI gerada",
+      colabId,
+      colaboradores: state.colaboradores,
+      detail: `${entregaIds.length} item(ns)`,
+      user: user.email,
+      ts: result.geradaEm,
+    });
+    dispatch({ type: "ADICIONAR_LOG_ENTRY", entry });
+    void registrarLog(entry);
   }
 
   async function handleAnexarAssinatura(fichaId: string, file: File) {
     if (!user) return { ok: false as const, error: "Sessão expirada — faça login novamente." };
+    const ficha = state.fichasEpi.find((f) => f.id === fichaId);
     const result = await anexarAssinaturaFicha(fichaId, file, user.email);
     if (!result.ok) return result;
-    dispatch({ type: "ANEXAR_FICHA_EPI_ASSINADA", fichaId, fileName: file.name, storagePath: result.storagePath, mime: file.type, by: user.email });
+    dispatch({
+      type: "ANEXAR_FICHA_EPI_ASSINADA",
+      fichaId,
+      fileName: file.name,
+      storagePath: result.storagePath,
+      mime: file.type,
+      anexadaEm: result.anexadaEm,
+      by: user.email,
+    });
+    const entry = criarLogEntry({
+      action: "Ficha de EPI assinada anexada",
+      colabId: ficha?.colabId ?? colabId,
+      colaboradores: state.colaboradores,
+      detail: `${ficha?.entregaIds.length ?? 0} item(ns)`,
+      user: user.email,
+      ts: result.anexadaEm,
+    });
+    dispatch({ type: "ADICIONAR_LOG_ENTRY", entry });
+    void registrarLog(entry);
     return { ok: true as const };
   }
 

@@ -8,9 +8,11 @@ import { colaboradoresRepository } from "../../repositories/colaboradoresReposit
 import { removerDesligamentoPendente } from "../../repositories/desligamentoPendenteRepository";
 import { anexarExame, getAnexoSignedUrl } from "../../repositories/anexosExamesRepository";
 import { abrirAnexoUmaVez } from "../../domain/abrirArquivo";
+import { registrarLog } from "../../repositories/logRepository";
+import { criarLogEntry } from "../../domain/logEntry";
 import { statusDoRegistro, toneForStatus } from "../../domain/exameStatus";
 import { deptName, fmtMoney, iniciais, maskCpf, titleCase } from "../../domain/text";
-import { idadeFromISO, isoToBR } from "../../domain/dates";
+import { idadeFromISO, isoToBR, stamp } from "../../domain/dates";
 import { todosOsCargos } from "./lib/exameUtils";
 import { AnexarExameModal } from "./AnexarExameModal";
 import type { AnexarExamePayload } from "./AnexarExameModal";
@@ -79,7 +81,17 @@ export function ExameFichaDrawer({ colabId, onClose, abrirDesligarPendente }: Ex
       by: user.email,
     });
     if (!result.ok) return result;
-    dispatch({ type: "ANEXAR_EXAME", anexo: result.anexo, proximo: payload.proximo, by: user.email });
+    dispatch({ type: "ANEXAR_EXAME", anexo: result.anexo, proximo: payload.proximo });
+    const entry = criarLogEntry({
+      action: "Exame anexado",
+      colabId: payload.colabId,
+      colaboradores: state.colaboradores,
+      detail: payload.proc,
+      user: user.email,
+      ts: result.anexo.ts,
+    });
+    dispatch({ type: "ADICIONAR_LOG_ENTRY", entry });
+    void registrarLog(entry);
     return { ok: true as const };
   }
 
@@ -109,6 +121,16 @@ export function ExameFichaDrawer({ colabId, onClose, abrirDesligarPendente }: Ex
     const result = await colaboradoresRepository.desligarColaborador(colabId, dataIso, motivo);
     if (!result.ok) return result;
     dispatch({ type: "DESLIGAR_COLABORADOR", colabId, date: isoToBR(dataIso), motivo, by: user.email });
+    const entry = criarLogEntry({
+      action: "Colaborador desligado",
+      colabId,
+      colaboradores: state.colaboradores,
+      detail: motivo,
+      user: user.email,
+      ts: stamp(),
+    });
+    dispatch({ type: "ADICIONAR_LOG_ENTRY", entry });
+    void registrarLog(entry);
     if (abrirDesligarPendente) {
       // Efetivação de uma solicitação vinda do PeopleFlow — encerra a pendência
       // para não continuar aparecendo no Dashboard.

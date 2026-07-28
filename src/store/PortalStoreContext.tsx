@@ -5,9 +5,14 @@ import { colaboradoresRepository } from "../repositories/colaboradoresRepository
 import { getDesligamentosPendentes } from "../repositories/desligamentoPendenteRepository";
 import { getAnexosExames } from "../repositories/anexosExamesRepository";
 import { getEntregasEpi, getFichasEpi } from "../repositories/fichasEpiRepository";
+import { getFardamentoEntregas, getFardamentoReparos } from "../repositories/fardamentoRepository";
+import { getEpiPrecos, getExamePrecos, getFardamentoPrecos } from "../repositories/precosRepository";
+import { getMatrizAddCargos } from "../repositories/matrizAddRepository";
+import { getCustosEpiMes, getCustosFardamentoMes } from "../repositories/custosRepository";
+import { getLog } from "../repositories/logRepository";
 import type { PortalAction } from "./actions";
 import { portalReducer } from "./reducer";
-import { buildInitialState } from "./seed";
+import { buildInitialState, defaultEpiPrecos, defaultExamePrecos, defaultFardamentoPrecos } from "./seed";
 import type { PortalState } from "./types";
 
 const STORAGE_KEY = "msb_sst_portal_v1";
@@ -99,6 +104,67 @@ export function PortalStoreProvider({ children }: { children: ReactNode }) {
       .then((attachments) => {
         if (cancelado) return;
         dispatch({ type: "SET_ANEXOS_EXAMES", attachments });
+      })
+      .catch(() => {});
+    // Fardamento, preços, matriz adicionada, custos e log — mesma ideia acima,
+    // antes só existiam em localStorage (ver README para o histórico da
+    // migração). Cada carga é independente; uma falha isolada não derruba o
+    // resto do app.
+    getFardamentoEntregas()
+      .then((fardamentoEntregas) => {
+        if (cancelado) return;
+        dispatch({ type: "SET_FARDAMENTO_ENTREGAS", fardamentoEntregas });
+      })
+      .catch(() => {});
+    getFardamentoReparos()
+      .then((fardamentoReparos) => {
+        if (cancelado) return;
+        dispatch({ type: "SET_FARDAMENTO_REPAROS", fardamentoReparos });
+      })
+      .catch(() => {});
+    // Preços: mescla o catálogo estático (valor "de fábrica") com o que o RH
+    // já editou no Supabase — uma chave nunca editada continua mostrando o
+    // valor padrão em vez de sumir do catálogo.
+    getEpiPrecos()
+      .then((doSupabase) => {
+        if (cancelado) return;
+        dispatch({ type: "SET_EPI_PRECOS", epiPrecos: { ...defaultEpiPrecos(), ...doSupabase } });
+      })
+      .catch(() => {});
+    getExamePrecos()
+      .then((doSupabase) => {
+        if (cancelado) return;
+        dispatch({ type: "SET_EXAME_PRECOS", examePrecos: { ...defaultExamePrecos(), ...doSupabase } });
+      })
+      .catch(() => {});
+    getFardamentoPrecos()
+      .then((doSupabase) => {
+        if (cancelado) return;
+        dispatch({ type: "SET_FARDAMENTO_PRECOS", fardamentoPrecos: { ...defaultFardamentoPrecos(), ...doSupabase } });
+      })
+      .catch(() => {});
+    getMatrizAddCargos()
+      .then((matrizAdd) => {
+        if (cancelado) return;
+        dispatch({ type: "SET_MATRIZ_ADD", matrizAdd });
+      })
+      .catch(() => {});
+    getCustosEpiMes()
+      .then((custosEpi) => {
+        if (cancelado) return;
+        dispatch({ type: "SET_CUSTOS_EPI", custosEpi });
+      })
+      .catch(() => {});
+    getCustosFardamentoMes()
+      .then((custosFardamento) => {
+        if (cancelado) return;
+        dispatch({ type: "SET_CUSTOS_FARDAMENTO", custosFardamento });
+      })
+      .catch(() => {});
+    getLog()
+      .then((log) => {
+        if (cancelado) return;
+        dispatch({ type: "SET_LOG", log });
       })
       .catch(() => {});
     return () => {

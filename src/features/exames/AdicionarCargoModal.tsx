@@ -6,7 +6,7 @@ import type { CargoOcupacional } from "../../types/domain";
 
 interface AdicionarCargoModalProps {
   onClose: () => void;
-  onSave: (cargo: CargoOcupacional) => void;
+  onSave: (cargo: CargoOcupacional) => Promise<{ ok: true } | { ok: false; error: string }>;
 }
 
 /** Cadastro mínimo de um novo cargo na matriz ocupacional — riscos/EPIs/exames detalhados ficam
@@ -15,12 +15,16 @@ export function AdicionarCargoModal({ onClose, onSave }: AdicionarCargoModalProp
   const [nome, setNome] = useState("");
   const [cbo, setCbo] = useState("");
   const [ambiente, setAmbiente] = useState("");
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
 
-  const canSubmit = nome.trim().length > 0;
+  const canSubmit = nome.trim().length > 0 && !enviando;
 
-  function handleSubmit() {
+  async function handleSubmit() {
     if (!canSubmit) return;
-    onSave({
+    setEnviando(true);
+    setErro(null);
+    const result = await onSave({
       nome: nome.trim(),
       cbo: cbo.trim(),
       ambiente: ambiente.trim() || "Sem classificação",
@@ -28,6 +32,11 @@ export function AdicionarCargoModal({ onClose, onSave }: AdicionarCargoModalProp
       epis: [],
       exames: [],
     });
+    setEnviando(false);
+    if (!result.ok) {
+      setErro(result.error);
+      return;
+    }
     onClose();
   }
 
@@ -42,11 +51,12 @@ export function AdicionarCargoModal({ onClose, onSave }: AdicionarCargoModalProp
             Cancelar
           </Button>
           <Button disabled={!canSubmit} onClick={handleSubmit}>
-            Adicionar cargo
+            {enviando ? "Adicionando..." : "Adicionar cargo"}
           </Button>
         </>
       }
     >
+      {erro ? <div style={{ fontSize: 12, fontWeight: 600, color: "var(--color-danger, #99413a)", marginBottom: 10 }}>{erro}</div> : null}
       <LabeledField label="Nome do cargo">
         <TextInput value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex.: Auxiliar de Enfermagem" autoFocus />
       </LabeledField>

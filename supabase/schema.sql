@@ -168,3 +168,230 @@ create policy "authenticated_full_access_fichas_epi"
   to authenticated
   using (true)
   with check (true);
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- Fardamento, tabelas de preço, cargos adicionados à matriz, orçamentos
+-- mensais e o log de auditoria — até aqui só existiam em localStorage
+-- (nunca sincronizados com o Supabase), então limpar o cache do navegador
+-- apagava esses dados permanentemente. Mesmo padrão das seções acima.
+
+-- 5) Entregas de fardamento — histórico imutável, um registro por entrega
+-- (equivalente de sst_entregas_epi, sem o conceito de ficha/assinatura).
+create table if not exists public.sst_fardamento_entregas (
+  id text primary key,
+  colab_id bigint not null references public.colaboradores(id),
+  cpf text not null default '',
+  tipo text not null default '',
+  qtd integer not null default 1,
+  tamanho text not null default '',
+  valor_unit numeric not null default 0,
+  fornecedor text not null default '',
+  data_entrega text not null default '',
+  data_compra text not null default '',
+  obs text not null default '',
+  responsavel text not null default '',
+  ts text not null default '',
+  created_at timestamptz not null default now()
+);
+
+comment on table public.sst_fardamento_entregas is
+  'Entregas de fardamento (uniformes) registradas pelo RH — ver FardamentoEntrega em src/types/domain.ts.';
+
+alter table public.sst_fardamento_entregas enable row level security;
+drop policy if exists "authenticated_full_access_fardamento_entregas" on public.sst_fardamento_entregas;
+create policy "authenticated_full_access_fardamento_entregas"
+  on public.sst_fardamento_entregas for all
+  to authenticated
+  using (true)
+  with check (true);
+
+-- 6) Reparos de fardamento — histórico imutável, mesmo padrão das entregas.
+create table if not exists public.sst_fardamento_reparos (
+  id text primary key,
+  colab_id bigint not null references public.colaboradores(id),
+  cpf text not null default '',
+  peca text not null default '',
+  tipo_reparo text not null default '',
+  valor numeric not null default 0,
+  fornecedor text not null default '',
+  data_reparo text not null default '',
+  obs text not null default '',
+  responsavel text not null default '',
+  ts text not null default '',
+  created_at timestamptz not null default now()
+);
+
+comment on table public.sst_fardamento_reparos is
+  'Reparos de fardamento registrados pelo RH — ver FardamentoReparo em src/types/domain.ts.';
+
+alter table public.sst_fardamento_reparos enable row level security;
+drop policy if exists "authenticated_full_access_fardamento_reparos" on public.sst_fardamento_reparos;
+create policy "authenticated_full_access_fardamento_reparos"
+  on public.sst_fardamento_reparos for all
+  to authenticated
+  using (true)
+  with check (true);
+
+-- 7/8/9) Tabelas de preço (EPI, exame, fardamento) — catálogo editável pelo
+-- RH, uma linha por chave de negócio (equip/codigo/tipo), com o histórico de
+-- alterações guardado como jsonb na própria linha (mesmo padrão de
+-- colaboradores.epis/exames — lista aninhada, não precisa de tabela própria
+-- já que só é lida/escrita inteira, nunca uma entrada do histórico isolada).
+create table if not exists public.sst_epi_precos (
+  equip text primary key,
+  valor numeric not null default 0,
+  fornecedor text not null default '',
+  data_cotacao text not null default '',
+  historico jsonb not null default '[]'::jsonb,
+  updated_at timestamptz not null default now()
+);
+
+comment on table public.sst_epi_precos is
+  'Catálogo de preços de EPI, editável pelo RH — ver PrecoInfo em src/types/domain.ts.';
+
+alter table public.sst_epi_precos enable row level security;
+drop policy if exists "authenticated_full_access_epi_precos" on public.sst_epi_precos;
+create policy "authenticated_full_access_epi_precos"
+  on public.sst_epi_precos for all
+  to authenticated
+  using (true)
+  with check (true);
+
+create table if not exists public.sst_exame_precos (
+  codigo text primary key,
+  valor numeric not null default 0,
+  fornecedor text not null default '',
+  data_cotacao text not null default '',
+  historico jsonb not null default '[]'::jsonb,
+  updated_at timestamptz not null default now()
+);
+
+comment on table public.sst_exame_precos is
+  'Catálogo de preços de exame ocupacional, editável pelo RH — ver PrecoInfo em src/types/domain.ts.';
+
+alter table public.sst_exame_precos enable row level security;
+drop policy if exists "authenticated_full_access_exame_precos" on public.sst_exame_precos;
+create policy "authenticated_full_access_exame_precos"
+  on public.sst_exame_precos for all
+  to authenticated
+  using (true)
+  with check (true);
+
+create table if not exists public.sst_fardamento_precos (
+  tipo text primary key,
+  valor numeric not null default 0,
+  fornecedor text not null default '',
+  data_cotacao text not null default '',
+  historico jsonb not null default '[]'::jsonb,
+  updated_at timestamptz not null default now()
+);
+
+comment on table public.sst_fardamento_precos is
+  'Catálogo de preços de fardamento, editável pelo RH — ver PrecoInfo em src/types/domain.ts.';
+
+alter table public.sst_fardamento_precos enable row level security;
+drop policy if exists "authenticated_full_access_fardamento_precos" on public.sst_fardamento_precos;
+create policy "authenticated_full_access_fardamento_precos"
+  on public.sst_fardamento_precos for all
+  to authenticated
+  using (true)
+  with check (true);
+
+-- 10) Cargos adicionados manualmente à matriz ocupacional (além do catálogo
+-- estático) — riscos/epis/exames de cada cargo ficam em jsonb, mesmo padrão
+-- de colaboradores.epis/exames.
+create table if not exists public.sst_matriz_add_cargos (
+  id text primary key,
+  nome text not null default '',
+  cbo text not null default '',
+  ambiente text not null default '',
+  riscos jsonb not null default '[]'::jsonb,
+  epis jsonb not null default '[]'::jsonb,
+  exames jsonb not null default '[]'::jsonb,
+  added_by text not null default '',
+  ts text not null default '',
+  created_at timestamptz not null default now()
+);
+
+comment on table public.sst_matriz_add_cargos is
+  'Cargos adicionados pelo RH à matriz ocupacional, além do catálogo estático — ver CargoOcupacional em src/types/domain.ts.';
+
+alter table public.sst_matriz_add_cargos enable row level security;
+drop policy if exists "authenticated_full_access_matriz_add_cargos" on public.sst_matriz_add_cargos;
+create policy "authenticated_full_access_matriz_add_cargos"
+  on public.sst_matriz_add_cargos for all
+  to authenticated
+  using (true)
+  with check (true);
+
+-- 11/12) Orçamento mensal de EPI/fardamento (base para o gráfico "orçado x
+-- realizado" do Dashboard) — hoje não existe tela para o RH preencher isso
+-- (o campo já ficava sempre vazio em localStorage também), mas a tabela já
+-- fica pronta para quando essa tela for construída.
+create table if not exists public.sst_custos_epi_mes (
+  mes text primary key,
+  orcado numeric not null default 0,
+  realizado_base numeric not null default 0,
+  updated_at timestamptz not null default now()
+);
+
+comment on table public.sst_custos_epi_mes is
+  'Orçamento mensal de EPI (base para o gráfico orçado x realizado) — ver CustoMesEpi em src/store/types.ts.';
+
+alter table public.sst_custos_epi_mes enable row level security;
+drop policy if exists "authenticated_full_access_custos_epi_mes" on public.sst_custos_epi_mes;
+create policy "authenticated_full_access_custos_epi_mes"
+  on public.sst_custos_epi_mes for all
+  to authenticated
+  using (true)
+  with check (true);
+
+create table if not exists public.sst_custos_fardamento_mes (
+  mes text primary key,
+  orcado numeric not null default 0,
+  entrega_base numeric not null default 0,
+  reparo_base numeric not null default 0,
+  updated_at timestamptz not null default now()
+);
+
+comment on table public.sst_custos_fardamento_mes is
+  'Orçamento mensal de fardamento (base para o gráfico orçado x realizado) — ver CustoMesFardamento em src/store/types.ts.';
+
+alter table public.sst_custos_fardamento_mes enable row level security;
+drop policy if exists "authenticated_full_access_custos_fardamento_mes" on public.sst_custos_fardamento_mes;
+create policy "authenticated_full_access_custos_fardamento_mes"
+  on public.sst_custos_fardamento_mes for all
+  to authenticated
+  using (true)
+  with check (true);
+
+-- 13) Log de auditoria — histórico de ações do RH no portal. Policy
+-- deliberadamente sem update/delete (só insert + select): reforça no banco
+-- a garantia de "append-only" que antes só existia por convenção no reducer.
+create table if not exists public.sst_log (
+  id text primary key,
+  action text not null default '',
+  colab_id bigint references public.colaboradores(id),
+  colab_nome text not null default '',
+  detail text not null default '',
+  user_email text not null default '',
+  ts text not null default '',
+  created_at timestamptz not null default now()
+);
+
+comment on table public.sst_log is
+  'Log de auditoria (append-only) das ações do RH no portal — ver LogEntry em src/types/domain.ts.';
+
+alter table public.sst_log enable row level security;
+
+drop policy if exists "authenticated_insert_log" on public.sst_log;
+create policy "authenticated_insert_log"
+  on public.sst_log for insert
+  to authenticated
+  with check (true);
+
+drop policy if exists "authenticated_read_log" on public.sst_log;
+create policy "authenticated_read_log"
+  on public.sst_log for select
+  to authenticated
+  using (true);

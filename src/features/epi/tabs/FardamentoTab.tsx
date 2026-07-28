@@ -18,8 +18,12 @@ import { PriceEditModal } from "../../../components/shared/PriceEditModal";
 import { useAuth } from "../../../auth/AuthContext";
 import { usePortalStore } from "../../../store/PortalStoreContext";
 import { deptName, fmtMoney, titleCase } from "../../../domain/text";
-import { isoToBR, parseBR } from "../../../domain/dates";
+import { isoToBR, parseBR, stamp } from "../../../domain/dates";
+import { criarLogEntry } from "../../../domain/logEntry";
 import { matchesColaboradorSearch } from "../lib/epiUtils";
+import { registrarFardamentoEntrega, registrarFardamentoReparo } from "../../../repositories/fardamentoRepository";
+import { editarPrecoFardamento } from "../../../repositories/precosRepository";
+import { registrarLog } from "../../../repositories/logRepository";
 import { FardamentoEntregaModal } from "../FardamentoEntregaModal";
 import type { FardamentoEntregaPayload } from "../FardamentoEntregaModal";
 import { FardamentoReparoModal } from "../FardamentoReparoModal";
@@ -147,28 +151,63 @@ export function FardamentoTab() {
     setFiltros(FILTROS_INICIAIS);
   }
 
-  function handleNovaEntrega(payload: FardamentoEntregaPayload) {
-    if (!user) return;
-    dispatch({ type: "REGISTRAR_FARDAMENTO_ENTREGA", ...payload, by: user.email });
+  async function handleNovaEntrega(payload: FardamentoEntregaPayload) {
+    if (!user) return { ok: false as const, error: "Sessão expirada — faça login novamente." };
+    const colab = state.colaboradores.find((c) => c.id === payload.colabId);
+    const result = await registrarFardamentoEntrega({ ...payload, cpf: colab?.cpf ?? "", responsavel: user.email });
+    if (!result.ok) return result;
+    dispatch({ type: "REGISTRAR_FARDAMENTO_ENTREGA", entrega: result.entrega });
+    const entry = criarLogEntry({
+      action: "Entrega de fardamento",
+      colabId: payload.colabId,
+      colaboradores: state.colaboradores,
+      detail: payload.tipo,
+      user: user.email,
+      ts: result.entrega.ts,
+    });
+    dispatch({ type: "ADICIONAR_LOG_ENTRY", entry });
+    void registrarLog(entry);
+    return { ok: true as const };
   }
 
-  function handleNovoReparo(payload: FardamentoReparoPayload) {
-    if (!user) return;
-    dispatch({ type: "REGISTRAR_FARDAMENTO_REPARO", ...payload, by: user.email });
+  async function handleNovoReparo(payload: FardamentoReparoPayload) {
+    if (!user) return { ok: false as const, error: "Sessão expirada — faça login novamente." };
+    const colab = state.colaboradores.find((c) => c.id === payload.colabId);
+    const result = await registrarFardamentoReparo({ ...payload, cpf: colab?.cpf ?? "", responsavel: user.email });
+    if (!result.ok) return result;
+    dispatch({ type: "REGISTRAR_FARDAMENTO_REPARO", reparo: result.reparo });
+    const entry = criarLogEntry({
+      action: "Reparo de fardamento",
+      colabId: payload.colabId,
+      colaboradores: state.colaboradores,
+      detail: payload.tipoReparo,
+      user: user.email,
+      ts: result.reparo.ts,
+    });
+    dispatch({ type: "ADICIONAR_LOG_ENTRY", entry });
+    void registrarLog(entry);
+    return { ok: true as const };
   }
 
   const linhaEditando = editandoTipo ? valoresRows.find((r) => r.tipo === editandoTipo) : undefined;
 
-  function salvarPrecoFardamento(valor: number, fornecedor: string, dataCotacaoIso: string) {
-    if (!user || !editandoTipo) return;
-    dispatch({
-      type: "EDITAR_PRECO_FARDAMENTO",
-      tipo: editandoTipo,
-      valor,
-      fornecedor,
-      dataCotacao: dataCotacaoIso ? isoToBR(dataCotacaoIso) : "",
-      by: user.email,
+  async function salvarPrecoFardamento(valor: number, fornecedor: string, dataCotacaoIso: string) {
+    if (!user || !editandoTipo) return { ok: false as const, error: "Sessão expirada — faça login novamente." };
+    const dataCotacao = dataCotacaoIso ? isoToBR(dataCotacaoIso) : "";
+    const result = await editarPrecoFardamento(editandoTipo, state.fardamentoPrecos[editandoTipo], valor, fornecedor, dataCotacao);
+    if (!result.ok) return result;
+    dispatch({ type: "EDITAR_PRECO_FARDAMENTO", tipo: editandoTipo, preco: result.preco });
+    const entry = criarLogEntry({
+      action: "Preço de fardamento atualizado",
+      colabId: null,
+      colaboradores: state.colaboradores,
+      detail: editandoTipo,
+      user: user.email,
+      ts: stamp(),
     });
+    dispatch({ type: "ADICIONAR_LOG_ENTRY", entry });
+    void registrarLog(entry);
+    return { ok: true as const };
   }
 
   return (
