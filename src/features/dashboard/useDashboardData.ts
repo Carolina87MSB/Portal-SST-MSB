@@ -243,6 +243,23 @@ export function useDashboardData() {
       ];
     });
 
+    // ---------- ASO demissional pendente (criada aqui mesmo no SST) ----------
+    const asoDemissionalPendentesRows = state.asoDemissionalPendentes.flatMap((p) => {
+      const colab = state.colaboradores.find((c) => c.id === p.colabId);
+      if (!colab) return [];
+      return [
+        {
+          colabId: p.colabId,
+          nome: titleCase(colab.nome),
+          cargo: colab.cargo ? titleCase(colab.cargo) : "—",
+          departamento: deptName(colab.departamento),
+          desligadoEm: p.desligadoEm,
+          motivo: p.motivo,
+          solicitadoPor: p.solicitadoPor,
+        },
+      ];
+    });
+
     return {
       kpi,
       pctEmDia,
@@ -286,6 +303,7 @@ export function useDashboardData() {
         semFicha: entregasSemFicha,
       },
       desligamentosPendentesRows,
+      asoDemissionalPendentesRows,
     };
   }, [state]);
 }

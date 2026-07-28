@@ -15,6 +15,7 @@ export function DashboardPage() {
   const [custoEpiView, setCustoEpiView] = useState<CustoView>("mes");
   const [custoFardView, setCustoFardView] = useState<CustoView>("mes");
   const [resolvendoPendente, setResolvendoPendente] = useState<{ colabId: number; dataIso: string; motivo: string } | null>(null);
+  const [resolvendoAsoPendente, setResolvendoAsoPendente] = useState<number | null>(null);
 
   return (
     <div className={styles.page}>
@@ -53,6 +54,47 @@ export function DashboardPage() {
                   <Td>{row.cargo}</Td>
                   <Td>{row.departamento}</Td>
                   <Td mono>{row.dataDesligamento}</Td>
+                  <Td>{row.motivo}</Td>
+                  <Td>{row.solicitadoPor}</Td>
+                </Tr>
+              ))}
+            </tbody>
+          </Table>
+        </Card>
+      ) : null}
+
+      {/* ASO demissional pendente — confirmado aqui mesmo no SST, falta anexar o exame */}
+      {canEdit && data.asoDemissionalPendentesRows.length > 0 ? (
+        <Card className={[styles.sectionCard, styles.pendenteDesligamentoCard].join(" ")}>
+          <div className={styles.sectionHeader}>
+            <div>
+              <div className={styles.sectionTitle}>
+                <FileSignature size={15} style={{ marginRight: 6, verticalAlign: -2 }} />
+                ASO demissional pendente
+              </div>
+              <div className={styles.sectionSubtitle}>
+                Desligamento confirmado com mais de 90 dias — falta anexar o exame demissional na ficha do colaborador.
+              </div>
+            </div>
+          </div>
+          <Table>
+            <THead>
+              <Th>Colaborador</Th>
+              <Th>Cargo</Th>
+              <Th>Departamento</Th>
+              <Th>Desligado em</Th>
+              <Th>Motivo</Th>
+              <Th>Registrado por</Th>
+            </THead>
+            <tbody>
+              {data.asoDemissionalPendentesRows.map((row) => (
+                <Tr key={row.colabId} onClick={() => setResolvendoAsoPendente(row.colabId)}>
+                  <Td>
+                    <strong>{row.nome}</strong>
+                  </Td>
+                  <Td>{row.cargo}</Td>
+                  <Td>{row.departamento}</Td>
+                  <Td mono>{row.desligadoEm}</Td>
                   <Td>{row.motivo}</Td>
                   <Td>{row.solicitadoPor}</Td>
                 </Tr>
@@ -324,6 +366,10 @@ export function DashboardPage() {
           abrirDesligarPendente={{ dataIso: resolvendoPendente.dataIso, motivo: resolvendoPendente.motivo }}
           onClose={() => setResolvendoPendente(null)}
         />
+      ) : null}
+
+      {resolvendoAsoPendente != null ? (
+        <ExameFichaDrawer colabId={resolvendoAsoPendente} onClose={() => setResolvendoAsoPendente(null)} />
       ) : null}
     </div>
   );

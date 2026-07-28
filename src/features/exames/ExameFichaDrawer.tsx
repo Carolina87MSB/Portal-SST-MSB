@@ -6,6 +6,7 @@ import { usePortalStore } from "../../store/PortalStoreContext";
 import { portalRepository } from "../../repositories/portalRepository";
 import { colaboradoresRepository } from "../../repositories/colaboradoresRepository";
 import { removerDesligamentoPendente } from "../../repositories/desligamentoPendenteRepository";
+import { registrarAsoDemissionalPendente, removerAsoDemissionalPendente } from "../../repositories/asoDemissionalPendenteRepository";
 import { anexarExame, getAnexoSignedUrl } from "../../repositories/anexosExamesRepository";
 import { abrirAnexoUmaVez } from "../../domain/abrirArquivo";
 import { registrarLog } from "../../repositories/logRepository";
@@ -13,6 +14,7 @@ import { criarLogEntry } from "../../domain/logEntry";
 import { statusDoRegistro, toneForStatus } from "../../domain/exameStatus";
 import { deptName, fmtMoney, iniciais, maskCpf, titleCase } from "../../domain/text";
 import { idadeFromISO, isoToBR, stamp } from "../../domain/dates";
+import { uid } from "../../store/seed";
 import { todosOsCargos } from "./lib/exameUtils";
 import { AnexarExameModal } from "./AnexarExameModal";
 import type { AnexarExamePayload } from "./AnexarExameModal";
@@ -92,6 +94,12 @@ export function ExameFichaDrawer({ colabId, onClose, abrirDesligarPendente }: Ex
     });
     dispatch({ type: "ADICIONAR_LOG_ENTRY", entry });
     void registrarLog(entry);
+    if (desligamento && state.asoDemissionalPendentes.some((p) => p.colabId === payload.colabId)) {
+      // O RH finalmente anexou o exame do colaborador desligado — a pendência que
+      // apareceu no Dashboard desde o desligamento não tem mais motivo de existir.
+      dispatch({ type: "REMOVER_ASO_DEMISSIONAL_PENDENTE", colabId: payload.colabId });
+      void removerAsoDemissionalPendente(payload.colabId);
+    }
     return { ok: true as const };
   }
 
@@ -142,7 +150,19 @@ export function ExameFichaDrawer({ colabId, onClose, abrirDesligarPendente }: Ex
     }
     if (precisaExameDemissional) {
       // Abre o anexo de exame já com o tipo "Demissional" pré-selecionado — o exame
-      // específico (proc) continua livre, pois depende da matriz do cargo.
+      // específico (proc) continua livre, pois depende da matriz do cargo. Além
+      // disso, registra uma pendência rastreada (card no Dashboard) — o modal de
+      // anexo sozinho é fácil de fechar sem anexar nada e sem deixar rastro.
+      const pendente = {
+        id: uid("ADP"),
+        colabId,
+        desligadoEm: isoToBR(dataIso),
+        motivo,
+        solicitadoPor: user.email,
+        ts: stamp(),
+      };
+      dispatch({ type: "ADICIONAR_ASO_DEMISSIONAL_PENDENTE", pendente });
+      void registrarAsoDemissionalPendente(pendente);
       setAnexarTipo("Demissional");
       setAnexarProc(undefined);
     }
@@ -181,7 +201,7 @@ export function ExameFichaDrawer({ colabId, onClose, abrirDesligarPendente }: Ex
         </div>
       </div>
 
-      {canEdit && !desligamento ? (
+      {canEdit ? (
         <div className={styles.actionsRow}>
           <Button
             onClick={() => {
@@ -191,9 +211,11 @@ export function ExameFichaDrawer({ colabId, onClose, abrirDesligarPendente }: Ex
           >
             <Plus size={15} /> Anexar exame
           </Button>
-          <Button variant="danger" onClick={() => setDesligarOpen(true)}>
-            <UserMinus size={15} /> Desligar colaborador
-          </Button>
+          {!desligamento ? (
+            <Button variant="danger" onClick={() => setDesligarOpen(true)}>
+              <UserMinus size={15} /> Desligar colaborador
+            </Button>
+          ) : null}
         </div>
       ) : null}
 
@@ -204,7 +226,7 @@ export function ExameFichaDrawer({ colabId, onClose, abrirDesligarPendente }: Ex
         <div>
           {colaborador.exames.map((exame) => {
             const status = statusDoRegistro(exame);
-            const podeAnexar = canEdit && !desligamento && status !== "Em dia" && status !== "A vencer";
+            const podeAnexar = canEdit && status !== "Em dia" && status !== "A vencer";
             const anexo = attachmentFor(exame.proc);
             return (
               <div key={exame.proc} className={styles.examRow}>

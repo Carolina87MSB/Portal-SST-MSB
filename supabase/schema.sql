@@ -395,3 +395,28 @@ create policy "authenticated_read_log"
   on public.sst_log for select
   to authenticated
   using (true);
+
+-- 14) Pendência de ASO demissional — criada aqui mesmo no SST (ao contrário de
+-- peopleflow_desligamento_pendente, que vem do outro portal) quando o RH
+-- confirma "possui mais de 90 dias?" = Sim na tela "Desligar colaborador".
+-- Só some quando o exame demissional é de fato anexado na ficha do
+-- colaborador — antes disso, o RH só via um modal de sugestão fácil de
+-- fechar sem deixar rastro nenhum.
+create table if not exists public.sst_aso_demissional_pendentes (
+  id text primary key,
+  colab_id bigint not null references public.colaboradores(id),
+  desligado_em text not null default '',
+  motivo text not null default '',
+  solicitado_por text not null default '',
+  ts text not null default '',
+  created_at timestamptz not null default now(),
+  unique (colab_id)
+);
+
+alter table public.sst_aso_demissional_pendentes enable row level security;
+drop policy if exists "authenticated_full_access_aso_demissional_pendentes" on public.sst_aso_demissional_pendentes;
+create policy "authenticated_full_access_aso_demissional_pendentes"
+  on public.sst_aso_demissional_pendentes for all
+  to authenticated
+  using (true)
+  with check (true);

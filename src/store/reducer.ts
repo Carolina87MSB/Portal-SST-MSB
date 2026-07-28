@@ -26,6 +26,21 @@ export function portalReducer(state: PortalState, action: PortalAction): PortalS
         desligamentosPendentes: state.desligamentosPendentes.filter((d) => d.colaboradorNome !== action.colaboradorNome),
       };
 
+    case "SET_ASO_DEMISSIONAL_PENDENTES":
+      return { ...state, asoDemissionalPendentes: action.pendentes };
+
+    case "ADICIONAR_ASO_DEMISSIONAL_PENDENTE":
+      return {
+        ...state,
+        asoDemissionalPendentes: [...state.asoDemissionalPendentes.filter((p) => p.colabId !== action.pendente.colabId), action.pendente],
+      };
+
+    case "REMOVER_ASO_DEMISSIONAL_PENDENTE":
+      return {
+        ...state,
+        asoDemissionalPendentes: state.asoDemissionalPendentes.filter((p) => p.colabId !== action.colabId),
+      };
+
     case "SET_ENTREGAS_EPI":
       return { ...state, entregas: action.entregas };
 

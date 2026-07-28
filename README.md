@@ -65,6 +65,17 @@ Clicar num item do card abre a ficha do colaborador (`ExameFichaDrawer`) já com
 
 Se a leitura de `peopleflow_desligamento_pendente` falhar por qualquer motivo, o Dashboard simplesmente não mostra o card — não bloqueia o resto da página.
 
+### ASO demissional pendente (Dashboard)
+
+Confirmar "possui mais de 90 dias?" = Sim na tela "Desligar colaborador" **não bloqueia** o desligamento em si — ele é gravado imediatamente, e o modal de anexar exame só abre em seguida como conveniência. Fechar esse modal sem anexar nada não desfazia o desligamento nem deixava qualquer rastro, e uma vez desligado o colaborador nem tinha mais como anexar o exame depois (o botão "Anexar exame" só aparecia para quem ainda não tinha sido desligado) — um jeito fácil de o ASO demissional acabar nunca sendo anexado.
+
+Duas mudanças resolvem isso:
+
+- **"Anexar exame" agora fica disponível também para colaboradores já desligados** (`src/features/exames/ExameFichaDrawer.tsx`) — só "Desligar colaborador" some, já que não faz sentido desligar de novo. Dá pra acessar tanto pela aba **Desligados** ("Ver histórico") quanto pelo card abaixo.
+- **`sst_aso_demissional_pendentes`** — ao confirmar "Sim" para os 90 dias, uma pendência é gravada nessa tabela (`src/repositories/asoDemissionalPendenteRepository.ts`) e vira um card **"ASO demissional pendente"** no Dashboard, do mesmo jeito que "Desligamento pendente". A pendência só é removida quando o RH efetivamente anexa um exame na ficha daquele colaborador (`ExameFichaDrawer.handleAnexar`) — não quando o modal é só fechado.
+
+A gravação da pendência é best-effort (mesmo padrão do log de auditoria): se falhar, o desligamento em si não é afetado — o RH só não vê o lembrete no Dashboard.
+
 ### Anexos com Storage real (exames ASO e fichas de EPI assinadas)
 
 Antes, todo anexo (exame ocupacional, ficha de EPI assinada) virava base64 e ficava só no `localStorage` do navegador — nunca saía dali, sem backup, sem visibilidade entre RH/dispositivos. As entregas e fichas de EPI em si também eram só locais (nunca existiram no Supabase). Isso mudou: agora tudo é persistido de verdade —

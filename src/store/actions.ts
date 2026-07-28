@@ -1,4 +1,5 @@
 import type {
+  AsoDemissionalPendente,
   AttachmentExame,
   CargoOcupacional,
   Colaborador,
@@ -16,6 +17,11 @@ export type PortalAction =
   | { type: "SET_COLABORADORES"; colaboradores: Colaborador[] }
   | { type: "SET_DESLIGAMENTOS_PENDENTES"; desligamentosPendentes: DesligamentoPendente[] }
   | { type: "REMOVER_DESLIGAMENTO_PENDENTE"; colaboradorNome: string }
+  | { type: "SET_ASO_DEMISSIONAL_PENDENTES"; pendentes: AsoDemissionalPendente[] }
+  // `pendente` já vem construída no call site (ver ExameFichaDrawer.handleDesligar) — a
+  // gravação em sst_aso_demissional_pendentes é best-effort, igual ao log de auditoria.
+  | { type: "ADICIONAR_ASO_DEMISSIONAL_PENDENTE"; pendente: AsoDemissionalPendente }
+  | { type: "REMOVER_ASO_DEMISSIONAL_PENDENTE"; colabId: number }
   // Todo o estado abaixo (entregas/fichas EPI, anexos, fardamento, preços,
   // matriz, custos, log) é carregado do Supabase assim que a sessão é
   // confirmada (ver PortalStoreContext.tsx) — mesmo padrão de SET_COLABORADORES.

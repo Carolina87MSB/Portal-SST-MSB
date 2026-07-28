@@ -1,4 +1,5 @@
 import type {
+  AsoDemissionalPendente,
   AttachmentExame,
   CargoOcupacional,
   Colaborador,
@@ -40,6 +41,7 @@ export interface PortalState {
   attachments: AttachmentExame[];
   desligados: Record<number, Desligamento>;
   desligamentosPendentes: DesligamentoPendente[];
+  asoDemissionalPendentes: AsoDemissionalPendente[];
   epiPrecos: Record<string, PrecoInfo>;
   examePrecos: Record<string, PrecoInfo>;
   fardamentoPrecos: Record<string, PrecoInfo>;

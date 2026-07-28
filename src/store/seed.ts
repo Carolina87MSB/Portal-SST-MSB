@@ -64,6 +64,7 @@ export function buildInitialState(): PortalState {
     attachments: [],
     desligados: {},
     desligamentosPendentes: [],
+    asoDemissionalPendentes: [],
     epiPrecos,
     examePrecos,
     fardamentoPrecos,

@@ -198,6 +198,20 @@ export interface DesligamentoPendente {
   criadoEm: string;
 }
 
+/** Criada aqui mesmo no SST quando o RH confirma "possui mais de 90 dias?" = Sim
+ * na tela "Desligar colaborador" — permanece até o ASO demissional ser de fato
+ * anexado (ver `sst_aso_demissional_pendentes`); vira um card no Dashboard,
+ * assim a etapa não fica só na sugestão de abrir o modal em seguida (que era
+ * facilmente ignorada/fechada sem deixar rastro). */
+export interface AsoDemissionalPendente {
+  id: string;
+  colabId: number;
+  desligadoEm: string; // dd/mm/aaaa
+  motivo: string;
+  solicitadoPor: string;
+  ts: string;
+}
+
 export interface FardamentoEntrega {
   id: string;
   colabId: number;

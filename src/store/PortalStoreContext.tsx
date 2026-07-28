@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { colaboradoresRepository } from "../repositories/colaboradoresRepository";
 import { getDesligamentosPendentes } from "../repositories/desligamentoPendenteRepository";
+import { getAsoDemissionalPendentes } from "../repositories/asoDemissionalPendenteRepository";
 import { getAnexosExames } from "../repositories/anexosExamesRepository";
 import { getEntregasEpi, getFichasEpi } from "../repositories/fichasEpiRepository";
 import { getFardamentoEntregas, getFardamentoReparos } from "../repositories/fardamentoRepository";
@@ -80,6 +81,14 @@ export function PortalStoreProvider({ children }: { children: ReactNode }) {
       .then((desligamentosPendentes) => {
         if (cancelado) return;
         dispatch({ type: "SET_DESLIGAMENTOS_PENDENTES", desligamentosPendentes });
+      })
+      .catch(() => {
+        // notificação não-crítica — se falhar, o Dashboard só fica sem o aviso desta vez.
+      });
+    getAsoDemissionalPendentes()
+      .then((pendentes) => {
+        if (cancelado) return;
+        dispatch({ type: "SET_ASO_DEMISSIONAL_PENDENTES", pendentes });
       })
       .catch(() => {
         // notificação não-crítica — se falhar, o Dashboard só fica sem o aviso desta vez.
