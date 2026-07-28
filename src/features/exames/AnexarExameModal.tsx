@@ -62,6 +62,11 @@ export function AnexarExameModal({
   const [file, setFile] = useState<File | null>(null);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [examesSelecionados, setExamesSelecionados] = useState<Set<string>>(new Set());
+  const [lendoDocumento, setLendoDocumento] = useState(false);
+  const [leituraInfo, setLeituraInfo] = useState<{ extraiu: boolean; qtd: number } | null>(null);
+
+  const isDemissional = tipo === "Demissional" && !procLocked;
 
   const selectedColab = useMemo(() => colaboradores.find((c) => c.id === colabId) ?? null, [colaboradores, colabId]);
 
@@ -73,6 +78,8 @@ export function AnexarExameModal({
   useEffect(() => {
     if (procLocked) return;
     setSelectedKey(entries[0]?.key ?? null);
+    setExamesSelecionados(new Set());
+    setLeituraInfo(null);
   }, [entries, procLocked]);
 
   const selectedEntry = useMemo<ExameMatrizEntry | null>(() => {
@@ -110,13 +117,52 @@ export function AnexarExameModal({
     setProximoBR(addMonthsBR(isoToBR(dataRealizadaIso), selectedEntry.periodicidadeMeses));
   }, [dataRealizadaIso, selectedEntry, proximoTouched]);
 
-  const canSubmit =
-    colabId != null && !!selectedEntry && dataRealizadaIso.length > 0 && proximoBR.trim().length > 0 && proximoBR !== "—" && !enviando;
+  const canSubmit = isDemissional
+    ? colabId != null && examesSelecionados.size > 0 && dataRealizadaIso.length > 0 && !enviando
+    : colabId != null && !!selectedEntry && dataRealizadaIso.length > 0 && proximoBR.trim().length > 0 && proximoBR !== "—" && !enviando;
+
+  function toggleExame(key: string) {
+    setExamesSelecionados((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
 
   async function handleSubmit() {
-    if (!canSubmit || !selectedEntry || colabId == null) return;
+    if (!canSubmit || colabId == null) return;
     setEnviando(true);
     setErro(null);
+
+    if (isDemissional) {
+      // ASO demissional cobre vários exames de uma vez — cada um vira um registro
+      // próprio, todos com a mesma data de realização e o mesmo comprovante.
+      for (const entry of entries.filter((e) => examesSelecionados.has(e.key))) {
+        const result = await onSave({
+          colabId,
+          proc: entry.procStr,
+          dataISO: isoToBR(dataRealizadaIso),
+          proximo: "—", // demissional não tem "próximo" — o colaborador está saindo
+          fornecedor: fornecedor.trim(),
+          valor: Number(String(valorInput).replace(",", ".")) || 0,
+          file,
+        });
+        if (!result.ok) {
+          setEnviando(false);
+          setErro(result.error);
+          return;
+        }
+      }
+      setEnviando(false);
+      onClose();
+      return;
+    }
+
+    if (!selectedEntry) {
+      setEnviando(false);
+      return;
+    }
     const result = await onSave({
       colabId,
       proc: selectedEntry.procStr,
@@ -134,8 +180,20 @@ export function AnexarExameModal({
     onClose();
   }
 
-  function handleFileChange(e: ChangeEvent<HTMLInputElement>) {
-    setFile(e.target.files?.[0] ?? null);
+  async function handleFileChange(e: ChangeEvent<HTMLInputElement>) {
+    const novoArquivo = e.target.files?.[0] ?? null;
+    setFile(novoArquivo);
+    if (!isDemissional || !novoArquivo) {
+      setLeituraInfo(null);
+      return;
+    }
+    setLendoDocumento(true);
+    setLeituraInfo(null);
+    const { lerExamesDoDocumento } = await import("../../domain/lerDocumentoExame");
+    const resultado = await lerExamesDoDocumento(novoArquivo, entries);
+    setLendoDocumento(false);
+    setLeituraInfo({ extraiu: resultado.extraiu, qtd: resultado.keysEncontradas.length });
+    if (resultado.keysEncontradas.length > 0) setExamesSelecionados(new Set(resultado.keysEncontradas));
   }
 
   return (
@@ -150,7 +208,7 @@ export function AnexarExameModal({
             Cancelar
           </Button>
           <Button disabled={!canSubmit} onClick={handleSubmit}>
-            {enviando ? "Enviando..." : "Anexar exame"}
+            {enviando ? "Enviando..." : isDemissional ? "Anexar exame(s)" : "Anexar exame"}
           </Button>
         </>
       }
@@ -179,36 +237,69 @@ export function AnexarExameModal({
           <LabeledField label="Tipo de ASO">
             <Select options={tiposAso().map((t) => ({ value: t, label: t }))} value={tipo} onChange={(e) => setTipo(e.target.value)} />
           </LabeledField>
-          <LabeledField label="Exame">
-            {entries.length === 0 ? (
-              <div style={{ fontSize: 12, color: "var(--color-muted)" }}>
-                Nenhum exame mapeado na matriz ocupacional para este tipo de ASO — verifique o cargo do colaborador.
-              </div>
-            ) : (
-              <Select
-                options={entries.map((e) => ({ value: e.key, label: `${e.procStr}${e.jaTem ? " (já realizado antes)" : ""}` }))}
-                value={selectedKey ?? ""}
-                onChange={(e) => setSelectedKey(e.target.value)}
-              />
-            )}
-          </LabeledField>
+          {isDemissional ? (
+            <LabeledField
+              label="Exames realizados"
+              hint={
+                lendoDocumento
+                  ? "Lendo o documento..."
+                  : leituraInfo
+                    ? leituraInfo.extraiu
+                      ? `${leituraInfo.qtd} exame(s) identificado(s) no documento — confira e ajuste se necessário.`
+                      : "Não foi possível ler este arquivo automaticamente — selecione os exames realizados manualmente."
+                    : "Anexe o documento abaixo para preencher automaticamente, ou selecione manualmente."
+              }
+            >
+              {entries.length === 0 ? (
+                <div style={{ fontSize: 12, color: "var(--color-muted)" }}>
+                  Nenhum exame mapeado na matriz ocupacional para Demissional — verifique o cargo do colaborador.
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {entries.map((e) => (
+                    <label key={e.key} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
+                      <input type="checkbox" checked={examesSelecionados.has(e.key)} onChange={() => toggleExame(e.key)} disabled={enviando} />
+                      {e.procStr}
+                      {e.jaTem ? <span style={{ color: "var(--color-muted)" }}> (já realizado antes)</span> : null}
+                    </label>
+                  ))}
+                </div>
+              )}
+            </LabeledField>
+          ) : (
+            <LabeledField label="Exame">
+              {entries.length === 0 ? (
+                <div style={{ fontSize: 12, color: "var(--color-muted)" }}>
+                  Nenhum exame mapeado na matriz ocupacional para este tipo de ASO — verifique o cargo do colaborador.
+                </div>
+              ) : (
+                <Select
+                  options={entries.map((e) => ({ value: e.key, label: `${e.procStr}${e.jaTem ? " (já realizado antes)" : ""}` }))}
+                  value={selectedKey ?? ""}
+                  onChange={(e) => setSelectedKey(e.target.value)}
+                />
+              )}
+            </LabeledField>
+          )}
         </>
       ) : null}
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isDemissional ? "1fr" : "1fr 1fr", gap: 10 }}>
         <LabeledField label="Data de realização">
           <TextInput type="date" value={dataRealizadaIso} onChange={(e) => setDataRealizadaIso(e.target.value)} />
         </LabeledField>
-        <LabeledField label="Próxima data prevista" hint="Calculada pela periodicidade — ajustável manualmente">
-          <TextInput
-            value={proximoBR}
-            onChange={(e) => {
-              setProximoTouched(true);
-              setProximoBR(e.target.value);
-            }}
-            placeholder="dd/mm/aaaa"
-          />
-        </LabeledField>
+        {!isDemissional ? (
+          <LabeledField label="Próxima data prevista" hint="Calculada pela periodicidade — ajustável manualmente">
+            <TextInput
+              value={proximoBR}
+              onChange={(e) => {
+                setProximoTouched(true);
+                setProximoBR(e.target.value);
+              }}
+              placeholder="dd/mm/aaaa"
+            />
+          </LabeledField>
+        ) : null}
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
@@ -221,7 +312,7 @@ export function AnexarExameModal({
       </div>
 
       <LabeledField label="Arquivo / comprovante (opcional)" hint={file ? `Selecionado: ${file.name}` : undefined}>
-        <input type="file" onChange={handleFileChange} disabled={enviando} />
+        <input type="file" onChange={handleFileChange} disabled={enviando || lendoDocumento} />
       </LabeledField>
 
       {erro && <div style={{ marginTop: 10, fontSize: 12, fontWeight: 600, color: "var(--color-danger, #99413a)" }}>{erro}</div>}

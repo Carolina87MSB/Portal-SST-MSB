@@ -75,6 +75,15 @@ Antes, todo anexo (exame ocupacional, ficha de EPI assinada) virava base64 e fic
 
 As 3 tabelas novas têm RLS permissiva para `authenticated` (mesma regra de acesso que já existia: qualquer conta do portal é RH, não há distinção de perfil aqui) — ver os `create policy ... for all to authenticated` no fim de `supabase/schema.sql`. Rode o schema atualizado no Supabase Dashboard (idempotente, pode rodar de novo com segurança) antes de usar essas telas em produção; sem isso, os uploads falham com erro visível na tela (não silenciosamente).
 
+### ASO Demissional: leitura automática do PDF anexado
+
+No modal "Anexar exame ocupacional", quando o tipo de ASO é **Demissional**, o formulário muda de comportamento em relação aos outros tipos:
+
+- Não pede "Próxima data prevista" (o colaborador está saindo — não há próximo exame a agendar; o campo é gravado como `"—"`, mesmo sentinela de "não se aplica" já usado em outros lugares do app).
+- O seletor de exame único vira uma lista de checkboxes com todos os exames mapeados na matriz ocupacional para o cargo, permitindo lançar vários exames de uma vez (um ASO demissional normalmente cobre vários exames no mesmo laudo).
+- Ao anexar um PDF, o app tenta ler o texto do documento **no próprio navegador** (via `pdfjs-dist`, carregado sob demanda só nesse fluxo — não pesa no bundle principal) e pré-marca automaticamente os exames cujo nome ou código apareçam no texto (`src/domain/lerDocumentoExame.ts`). O RH sempre pode revisar e ajustar as marcações antes de salvar.
+- Essa leitura só funciona com PDFs que tenham texto selecionável — digitalizações/fotos escaneadas como imagem não têm camada de texto para extrair; nesse caso o app avisa e pede seleção manual. Não há nenhuma chamada a serviço externo/IA — é só correspondência de texto local, sem custo.
+
 ### Fardamento, preços, matriz adicionada, custos e log — também migrados do localStorage
 
 Na mesma linha da seção acima: fardamento (entregas/reparos), os catálogos de preço (EPI/exame/fardamento), os cargos que o RH adiciona manualmente à matriz ocupacional e o log de auditoria existiam só no `localStorage` — limpar o cache do navegador apagava esses dados permanentemente, sem qualquer aviso. Agora tudo isso também é persistido no Supabase:
