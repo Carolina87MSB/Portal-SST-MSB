@@ -1,7 +1,9 @@
 import { FileSpreadsheet } from "lucide-react";
 import { usePortalStore } from "../../store/PortalStoreContext";
 import { Card, ProgressBar } from "../../components/ui";
+import { portalRepository } from "../../repositories/portalRepository";
 import { deptName, maskCpf, titleCase } from "../../domain/text";
+import { idadeFromISO } from "../../domain/dates";
 import { statusDoRegistro } from "../../domain/exameStatus";
 import { downloadCsv } from "../../domain/csv";
 import styles from "./RelatoriosPage.module.css";
@@ -9,9 +11,12 @@ import styles from "./RelatoriosPage.module.css";
 export function RelatoriosPage() {
   const { state } = usePortalStore();
   const ativos = state.colaboradores.filter((c) => !state.desligados[c.id]);
+  const catalogoExames = portalRepository.getMatrizOcupacional().catalogoExames;
 
-  const exames = ativos.flatMap((c) => c.exames ?? []);
-  const emDia = exames.filter((e) => statusDoRegistro(e) === "Em dia").length;
+  const exames = ativos.flatMap((c) => (c.exames ?? []).map((exame) => ({ colab: c, exame })));
+  const emDia = exames.filter(
+    ({ colab, exame }) => statusDoRegistro(exame, new Date(), { idadeColab: idadeFromISO(colab.nascimento), catalogo: catalogoExames }) === "Em dia",
+  ).length;
   const classificados = ativos.filter((c) => c.epis && c.epis.length > 0).length;
   const epiPct = ativos.length ? Math.round((100 * classificados) / ativos.length) : 0;
   const asoPct = exames.length ? Math.round((100 * emDia) / exames.length) : 0;
@@ -39,7 +44,7 @@ export function RelatoriosPage() {
           exame: e.proc,
           ultimo: e.ultimo,
           proximo: e.proximo,
-          status: statusDoRegistro(e),
+          status: statusDoRegistro(e, new Date(), { idadeColab: idadeFromISO(c.nascimento), catalogo: catalogoExames }),
         })),
       ),
     );

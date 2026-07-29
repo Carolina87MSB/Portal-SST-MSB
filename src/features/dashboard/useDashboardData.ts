@@ -2,8 +2,9 @@ import { useMemo } from "react";
 import { usePortalStore } from "../../store/PortalStoreContext";
 import { portalRepository } from "../../repositories/portalRepository";
 import { deptName, fmtMoney, titleCase } from "../../domain/text";
-import { mesAbrev, mesISOfromBR, parseBR } from "../../domain/dates";
+import { idadeFromISO, mesAbrev, mesISOfromBR, parseBR } from "../../domain/dates";
 import { statusDoRegistro, toneForStatus } from "../../domain/exameStatus";
+import type { ContextoIdadeExame } from "../../domain/exameStatus";
 import type { BadgeTone } from "../../domain/exameStatus";
 import { statusFichaEpi } from "../../domain/fichaAssinatura";
 import type { Colaborador, ExameRegistro } from "../../types/domain";
@@ -29,12 +30,18 @@ export function useDashboardData() {
     const hoje = new Date();
     const colaboradoresAtivos = state.colaboradores.filter((c) => !state.desligados[c.id]);
 
+    const catalogoExames = portalRepository.getMatrizOcupacional().catalogoExames;
+    const contextoIdade = (colab: Colaborador): ContextoIdadeExame => ({
+      idadeColab: idadeFromISO(colab.nascimento),
+      catalogo: catalogoExames,
+    });
+
     const exames: ExameFlat[] = [];
     colaboradoresAtivos.forEach((c) => (c.exames ?? []).forEach((exame) => exames.push({ colab: c, exame })));
 
     const statusCount = { "Em dia": 0, "A vencer": 0, Vencido: 0, "Necessita revisão": 0, Pendente: 0 };
-    exames.forEach(({ exame }) => {
-      statusCount[statusDoRegistro(exame, hoje)]++;
+    exames.forEach(({ colab, exame }) => {
+      statusCount[statusDoRegistro(exame, hoje, contextoIdade(colab))]++;
     });
 
     const classificados = colaboradoresAtivos.filter((c) => c.epis && c.epis.length > 0).length;
@@ -42,13 +49,13 @@ export function useDashboardData() {
     const pctEmDia = Math.round((100 * statusCount["Em dia"]) / totalExames);
 
     const pendenciaRows = exames
-      .filter(({ exame }) => {
-        const st = statusDoRegistro(exame, hoje);
+      .filter(({ colab, exame }) => {
+        const st = statusDoRegistro(exame, hoje, contextoIdade(colab));
         return st === "Vencido" || st === "Necessita revisão";
       })
       .slice(0, 8)
       .map(({ colab, exame }) => {
-        const status = statusDoRegistro(exame, hoje);
+        const status = statusDoRegistro(exame, hoje, contextoIdade(colab));
         const proxima = parseBR(exame.proximo);
         const diasAtraso = status === "Vencido" && proxima ? Math.round((hoje.getTime() - proxima.getTime()) / 86_400_000) : null;
         return {

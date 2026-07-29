@@ -50,6 +50,7 @@ export function ExameFichaDrawer({ colabId, onClose, abrirDesligarPendente }: Ex
     () => todosOsCargos(portalRepository.getMatrizOcupacional().cargos, state.matrizAdd),
     [state.matrizAdd],
   );
+  const catalogoExames = useMemo(() => portalRepository.getMatrizOcupacional().catalogoExames, []);
 
   const attachments = useMemo(
     () =>
@@ -225,7 +226,7 @@ export function ExameFichaDrawer({ colabId, onClose, abrirDesligarPendente }: Ex
       ) : (
         <div>
           {colaborador.exames.map((exame) => {
-            const status = statusDoRegistro(exame);
+            const status = statusDoRegistro(exame, new Date(), { idadeColab: idade, catalogo: catalogoExames });
             const podeAnexar = canEdit && status !== "Em dia" && status !== "A vencer";
             const anexo = attachmentFor(exame.proc);
             return (

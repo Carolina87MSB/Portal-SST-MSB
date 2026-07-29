@@ -17,8 +17,21 @@ export function computeExameStatus(proximaBR: string | null | undefined, hoje: D
   return "Em dia";
 }
 
-export function statusDoRegistro(exame: ExameRegistro, hoje: Date = new Date()): StatusExame {
-  if (!exame.ultimo || exame.ultimo === "—") return "Pendente";
+/** Idade mínima do colaborador + catálogo — quando informado, um exame nunca realizado mas
+ * ainda não exigido pela idade (ex.: ECG antes dos 40 anos, ver pcmsoIdadeMinFor()) deixa de
+ * contar como "Pendente". Opcional para não quebrar quem só tem o exame em mãos. */
+export interface ContextoIdadeExame {
+  idadeColab: number | null;
+  catalogo: CatalogoExameOcupacional[];
+}
+
+export function statusDoRegistro(exame: ExameRegistro, hoje: Date = new Date(), contexto?: ContextoIdadeExame): StatusExame {
+  const semRegistro = !exame.ultimo || exame.ultimo === "—";
+  if (semRegistro && contexto) {
+    const idadeMin = pcmsoIdadeMinFor(exame.proc, contexto.catalogo);
+    if (idadeMin != null && (contexto.idadeColab == null || contexto.idadeColab < idadeMin)) return "Em dia";
+  }
+  if (semRegistro) return "Pendente";
   return computeExameStatus(exame.proximo, hoje);
 }
 
@@ -31,12 +44,12 @@ const SEVERIDADE: Record<StatusExame, number> = {
 };
 
 /** Pior status entre uma lista de exames de um colaborador (usado para o resumo da ficha). */
-export function statusGeralFor(exames: ExameRegistro[], hoje: Date = new Date()): StatusExame {
+export function statusGeralFor(exames: ExameRegistro[], hoje: Date = new Date(), contexto?: ContextoIdadeExame): StatusExame {
   if (!exames || exames.length === 0) return "Em dia";
   let pior: StatusExame = "Em dia";
   let piorSeveridade = 0;
   for (const exame of exames) {
-    const status = statusDoRegistro(exame, hoje);
+    const status = statusDoRegistro(exame, hoje, contexto);
     const severidade = SEVERIDADE[status] ?? 0;
     if (severidade > piorSeveridade) {
       piorSeveridade = severidade;

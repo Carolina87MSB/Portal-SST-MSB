@@ -50,10 +50,14 @@ export function ControleTab() {
     const termo = search.trim().toLowerCase();
     return ativos
       .filter((c) => (termo ? c.nome.toLowerCase().includes(termo) : true))
-      .filter((c) => (statusFilter ? statusGeralFor(c.exames) === statusFilter : true))
+      .filter((c) =>
+        statusFilter
+          ? statusGeralFor(c.exames, new Date(), { idadeColab: idadeFromISO(c.nascimento), catalogo: catalogoExames }) === statusFilter
+          : true,
+      )
       .slice()
       .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
-  }, [ativos, search, statusFilter]);
+  }, [ativos, search, statusFilter, catalogoExames]);
 
   async function handleAnexar(payload: AnexarExamePayload) {
     if (!user) return { ok: false as const, error: "Sessão expirada — faça login novamente." };
@@ -118,11 +122,12 @@ export function ControleTab() {
             <tbody>
               {linhas.map((c) => {
                 const idade = idadeFromISO(c.nascimento);
+                const contextoIdade = { idadeColab: idade, catalogo: catalogoExames };
                 const alerta = temAlertaIdade(c, catalogoExames);
                 const previstos = c.exames.length;
                 const realizados = c.exames.filter((e) => e.ultimo && e.ultimo !== "—").length;
-                const pendentesNunca = c.exames.filter((e) => statusDoRegistro(e) === "Pendente").length;
-                const geral = statusGeralFor(c.exames);
+                const pendentesNunca = c.exames.filter((e) => statusDoRegistro(e, new Date(), contextoIdade) === "Pendente").length;
+                const geral = statusGeralFor(c.exames, new Date(), contextoIdade);
                 return (
                   <Tr key={c.id}>
                     <Td>
