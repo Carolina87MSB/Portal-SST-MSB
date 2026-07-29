@@ -83,21 +83,34 @@ export interface LeituraExamesResult {
   keysEncontradas: string[];
   /** "aaaa-mm-dd" pronto pro <input type="date">, ou null quando não achou (ou achou mais de uma data candidata). */
   dataRealizacaoIso: string | null;
+  /** Motivo de `extraiu: false` — "não é PDF" | "sem texto (digitalização/foto)" | "erro ao processar o PDF".
+   * Só para diagnóstico (log/hint na UI); nunca bloqueia o preenchimento manual. */
+  motivoFalha?: string;
 }
 
 /** Identifica, dentre `entries`, quais exames são citados no PDF anexado, e tenta achar a
  * data de realização no texto. */
 export async function lerExamesDoDocumento(file: File, entries: ExameMatrizEntry[]): Promise<LeituraExamesResult> {
   const ehPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
-  if (!ehPdf) return { extraiu: false, keysEncontradas: [], dataRealizacaoIso: null };
+  if (!ehPdf) return { extraiu: false, keysEncontradas: [], dataRealizacaoIso: null, motivoFalha: "O arquivo não é um PDF." };
 
   let texto = "";
   try {
     texto = await extrairTextoPdf(file);
-  } catch {
-    return { extraiu: false, keysEncontradas: [], dataRealizacaoIso: null };
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error("[lerDocumentoExame] Falha ao processar o PDF", err);
+    const motivo = err instanceof Error ? err.message : "erro desconhecido";
+    return { extraiu: false, keysEncontradas: [], dataRealizacaoIso: null, motivoFalha: `Erro ao processar o PDF: ${motivo}` };
   }
-  if (texto.trim().length < 10) return { extraiu: false, keysEncontradas: [], dataRealizacaoIso: null };
+  if (texto.trim().length < 10) {
+    return {
+      extraiu: false,
+      keysEncontradas: [],
+      dataRealizacaoIso: null,
+      motivoFalha: "O PDF não tem texto selecionável (provável digitalização/foto).",
+    };
+  }
 
   const tokensDoc = tokenizar(texto);
   const keysEncontradas: string[] = [];

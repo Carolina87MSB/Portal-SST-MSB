@@ -63,7 +63,7 @@ export function AnexarExameModal({
   const [erro, setErro] = useState<string | null>(null);
   const [examesSelecionados, setExamesSelecionados] = useState<Set<string>>(new Set());
   const [lendoDocumento, setLendoDocumento] = useState(false);
-  const [leituraInfo, setLeituraInfo] = useState<{ extraiu: boolean; qtd: number } | null>(null);
+  const [leituraInfo, setLeituraInfo] = useState<{ extraiu: boolean; qtd: number; motivoFalha?: string } | null>(null);
 
   const isDemissional = tipo === "Demissional" && !procLocked;
 
@@ -204,7 +204,7 @@ export function AnexarExameModal({
     const { lerExamesDoDocumento } = await import("../../domain/lerDocumentoExame");
     const resultado = await lerExamesDoDocumento(novoArquivo, entries);
     setLendoDocumento(false);
-    setLeituraInfo({ extraiu: resultado.extraiu, qtd: resultado.keysEncontradas.length });
+    setLeituraInfo({ extraiu: resultado.extraiu, qtd: resultado.keysEncontradas.length, motivoFalha: resultado.motivoFalha });
     if (resultado.keysEncontradas.length > 0) setExamesSelecionados(new Set(resultado.keysEncontradas));
     if (resultado.dataRealizacaoIso && !dataRealizadaIso) setDataRealizadaIso(resultado.dataRealizacaoIso);
   }
@@ -268,7 +268,7 @@ export function AnexarExameModal({
               : leituraInfo
                 ? leituraInfo.extraiu
                   ? `${leituraInfo.qtd} exame(s) identificado(s) no documento — confira e ajuste se necessário.`
-                  : "Não foi possível ler este arquivo automaticamente — selecione os exames realizados manualmente."
+                  : `${leituraInfo.motivoFalha ?? "Não foi possível ler este arquivo automaticamente."} Selecione os exames realizados manualmente.`
                 : "Anexe o documento acima para preencher automaticamente, ou selecione manualmente."
           }
         >
