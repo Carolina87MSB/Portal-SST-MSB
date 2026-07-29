@@ -53,7 +53,6 @@ export function AnexarExameModal({
 
   const [colabId, setColabId] = useState<number | null>(initialColabId ?? null);
   const [tipo, setTipo] = useState<string>(initialTipo ?? tiposAso()[0] ?? "Periódico");
-  const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [dataRealizadaIso, setDataRealizadaIso] = useState("");
   const [proximoBR, setProximoBR] = useState("");
   const [proximoTouched, setProximoTouched] = useState(false);
@@ -77,49 +76,61 @@ export function AnexarExameModal({
 
   useEffect(() => {
     if (procLocked) return;
-    setSelectedKey(entries[0]?.key ?? null);
     setExamesSelecionados(new Set());
     setLeituraInfo(null);
   }, [entries, procLocked]);
 
+  // Só relevante quando o exame já vem travado (initialProc) — o fluxo comum agora é a
+  // lista de checkboxes abaixo, preenchida manualmente ou pela leitura do documento.
   const selectedEntry = useMemo<ExameMatrizEntry | null>(() => {
-    if (!selectedColab) return null;
-    if (procLocked && initialProc) {
-      for (const t of tiposAso()) {
-        const found = examesDaMatrizParaTipo(selectedColab, t, cargosOcupacionais).find((e) => e.procStr === initialProc);
-        if (found) return found;
-      }
-      const existente = selectedColab.exames.find((e) => e.proc === initialProc);
-      return {
-        key: initialProc,
-        codigo: procCode(initialProc),
-        nome: initialProc.replace(/^\(\d+\)\s*/, ""),
-        procStr: initialProc,
-        periodicidadeMeses: 12,
-        jaTem: !!existente,
-        ultimoAtual: existente?.ultimo ?? "—",
-      };
+    if (!selectedColab || !procLocked || !initialProc) return null;
+    for (const t of tiposAso()) {
+      const found = examesDaMatrizParaTipo(selectedColab, t, cargosOcupacionais).find((e) => e.procStr === initialProc);
+      if (found) return found;
     }
-    return entries.find((e) => e.key === selectedKey) ?? null;
-  }, [selectedColab, procLocked, initialProc, cargosOcupacionais, entries, selectedKey]);
+    const existente = selectedColab.exames.find((e) => e.proc === initialProc);
+    return {
+      key: initialProc,
+      codigo: procCode(initialProc),
+      nome: initialProc.replace(/^\(\d+\)\s*/, ""),
+      procStr: initialProc,
+      periodicidadeMeses: 12,
+      jaTem: !!existente,
+      ultimoAtual: existente?.ultimo ?? "—",
+    };
+  }, [selectedColab, procLocked, initialProc, cargosOcupacionais]);
 
+  const primeiroExameSelecionado = useMemo(
+    () => entries.find((e) => examesSelecionados.has(e.key)) ?? null,
+    [entries, examesSelecionados],
+  );
+
+  // Valor sugerido a partir do catálogo — o fornecedor/clínica NÃO é sugerido de propósito:
+  // o catálogo guarda um fornecedor "padrão", mas quem realizou o exame pode ter sido uma
+  // clínica diferente, então esse campo sempre começa em branco para digitação manual.
   useEffect(() => {
-    if (!selectedEntry?.codigo) return;
-    const preco = examePrecos[selectedEntry.codigo];
-    if (!preco) return;
-    setFornecedor((prev) => prev || preco.fornecedor || "");
-    setValorInput((prev) => prev || (preco.valor ? String(preco.valor) : ""));
+    const codigo = procLocked ? selectedEntry?.codigo : primeiroExameSelecionado?.codigo;
+    if (!codigo) return;
+    const preco = examePrecos[codigo];
+    if (!preco?.valor) return;
+    setValorInput((prev) => prev || String(preco.valor));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedEntry?.codigo]);
+  }, [procLocked, selectedEntry?.codigo, primeiroExameSelecionado?.codigo]);
 
   useEffect(() => {
-    if (proximoTouched || !dataRealizadaIso || !selectedEntry) return;
-    setProximoBR(addMonthsBR(isoToBR(dataRealizadaIso), selectedEntry.periodicidadeMeses));
-  }, [dataRealizadaIso, selectedEntry, proximoTouched]);
+    if (isDemissional || proximoTouched || !dataRealizadaIso) return;
+    const entry = procLocked ? selectedEntry : primeiroExameSelecionado;
+    if (!entry) return;
+    setProximoBR(addMonthsBR(isoToBR(dataRealizadaIso), entry.periodicidadeMeses));
+  }, [dataRealizadaIso, procLocked, selectedEntry, primeiroExameSelecionado, proximoTouched, isDemissional]);
 
-  const canSubmit = isDemissional
-    ? colabId != null && examesSelecionados.size > 0 && dataRealizadaIso.length > 0 && !enviando
-    : colabId != null && !!selectedEntry && dataRealizadaIso.length > 0 && proximoBR.trim().length > 0 && proximoBR !== "—" && !enviando;
+  const canSubmit = procLocked
+    ? colabId != null && !!selectedEntry && dataRealizadaIso.length > 0 && proximoBR.trim().length > 0 && proximoBR !== "—" && !enviando
+    : colabId != null &&
+      examesSelecionados.size > 0 &&
+      dataRealizadaIso.length > 0 &&
+      !enviando &&
+      (isDemissional || (proximoBR.trim().length > 0 && proximoBR !== "—"));
 
   function toggleExame(key: string) {
     setExamesSelecionados((prev) => {
@@ -135,55 +146,56 @@ export function AnexarExameModal({
     setEnviando(true);
     setErro(null);
 
-    if (isDemissional) {
-      // ASO demissional cobre vários exames de uma vez — cada um vira um registro
-      // próprio, todos com a mesma data de realização e o mesmo comprovante.
-      for (const entry of entries.filter((e) => examesSelecionados.has(e.key))) {
-        const result = await onSave({
-          colabId,
-          proc: entry.procStr,
-          dataISO: isoToBR(dataRealizadaIso),
-          proximo: "—", // demissional não tem "próximo" — o colaborador está saindo
-          fornecedor: fornecedor.trim(),
-          valor: Number(String(valorInput).replace(",", ".")) || 0,
-          file,
-        });
-        if (!result.ok) {
-          setEnviando(false);
-          setErro(result.error);
-          return;
-        }
+    if (procLocked) {
+      if (!selectedEntry) {
+        setEnviando(false);
+        return;
       }
+      const result = await onSave({
+        colabId,
+        proc: selectedEntry.procStr,
+        dataISO: isoToBR(dataRealizadaIso),
+        proximo: proximoBR.trim(),
+        fornecedor: fornecedor.trim(),
+        valor: Number(String(valorInput).replace(",", ".")) || 0,
+        file,
+      });
       setEnviando(false);
+      if (!result.ok) {
+        setErro(result.error);
+        return;
+      }
       onClose();
       return;
     }
 
-    if (!selectedEntry) {
-      setEnviando(false);
-      return;
+    // Um ou mais exames marcados (manualmente ou pela leitura automática do documento) —
+    // cada um vira um registro próprio, todos com a mesma data/fornecedor/valor/comprovante.
+    const proximoParaTodos = isDemissional ? "—" : proximoBR.trim();
+    for (const entry of entries.filter((e) => examesSelecionados.has(e.key))) {
+      const result = await onSave({
+        colabId,
+        proc: entry.procStr,
+        dataISO: isoToBR(dataRealizadaIso),
+        proximo: proximoParaTodos,
+        fornecedor: fornecedor.trim(),
+        valor: Number(String(valorInput).replace(",", ".")) || 0,
+        file,
+      });
+      if (!result.ok) {
+        setEnviando(false);
+        setErro(result.error);
+        return;
+      }
     }
-    const result = await onSave({
-      colabId,
-      proc: selectedEntry.procStr,
-      dataISO: isoToBR(dataRealizadaIso),
-      proximo: proximoBR.trim(),
-      fornecedor: fornecedor.trim(),
-      valor: Number(String(valorInput).replace(",", ".")) || 0,
-      file,
-    });
     setEnviando(false);
-    if (!result.ok) {
-      setErro(result.error);
-      return;
-    }
     onClose();
   }
 
   async function handleFileChange(e: ChangeEvent<HTMLInputElement>) {
     const novoArquivo = e.target.files?.[0] ?? null;
     setFile(novoArquivo);
-    if (!isDemissional || !novoArquivo) {
+    if (procLocked || !novoArquivo) {
       setLeituraInfo(null);
       return;
     }
@@ -194,7 +206,10 @@ export function AnexarExameModal({
     setLendoDocumento(false);
     setLeituraInfo({ extraiu: resultado.extraiu, qtd: resultado.keysEncontradas.length });
     if (resultado.keysEncontradas.length > 0) setExamesSelecionados(new Set(resultado.keysEncontradas));
+    if (resultado.dataRealizacaoIso && !dataRealizadaIso) setDataRealizadaIso(resultado.dataRealizacaoIso);
   }
+
+  const rotuloBotao = procLocked ? "Anexar exame" : examesSelecionados.size > 1 ? "Anexar exames" : "Anexar exame";
 
   return (
     <Modal
@@ -208,7 +223,7 @@ export function AnexarExameModal({
             Cancelar
           </Button>
           <Button disabled={!canSubmit} onClick={handleSubmit}>
-            {enviando ? "Enviando..." : isDemissional ? "Anexar exame(s)" : "Anexar exame"}
+            {enviando ? "Enviando..." : rotuloBotao}
           </Button>
         </>
       }
@@ -233,55 +248,46 @@ export function AnexarExameModal({
       ) : null}
 
       {selectedColab && !procLocked ? (
-        <>
-          <LabeledField label="Tipo de ASO">
-            <Select options={tiposAso().map((t) => ({ value: t, label: t }))} value={tipo} onChange={(e) => setTipo(e.target.value)} />
-          </LabeledField>
-          {isDemissional ? (
-            <LabeledField
-              label="Exames realizados"
-              hint={
-                lendoDocumento
-                  ? "Lendo o documento..."
-                  : leituraInfo
-                    ? leituraInfo.extraiu
-                      ? `${leituraInfo.qtd} exame(s) identificado(s) no documento — confira e ajuste se necessário.`
-                      : "Não foi possível ler este arquivo automaticamente — selecione os exames realizados manualmente."
-                    : "Anexe o documento abaixo para preencher automaticamente, ou selecione manualmente."
-              }
-            >
-              {entries.length === 0 ? (
-                <div style={{ fontSize: 12, color: "var(--color-muted)" }}>
-                  Nenhum exame mapeado na matriz ocupacional para Demissional — verifique o cargo do colaborador.
-                </div>
-              ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  {entries.map((e) => (
-                    <label key={e.key} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
-                      <input type="checkbox" checked={examesSelecionados.has(e.key)} onChange={() => toggleExame(e.key)} disabled={enviando} />
-                      {e.procStr}
-                      {e.jaTem ? <span style={{ color: "var(--color-muted)" }}> (já realizado antes)</span> : null}
-                    </label>
-                  ))}
-                </div>
-              )}
-            </LabeledField>
+        <LabeledField label="Tipo de ASO">
+          <Select options={tiposAso().map((t) => ({ value: t, label: t }))} value={tipo} onChange={(e) => setTipo(e.target.value)} />
+        </LabeledField>
+      ) : null}
+
+      {selectedColab ? (
+        <LabeledField label="Arquivo / comprovante (opcional)" hint={file ? `Selecionado: ${file.name}` : undefined}>
+          <input type="file" onChange={handleFileChange} disabled={enviando || lendoDocumento} />
+        </LabeledField>
+      ) : null}
+
+      {selectedColab && !procLocked ? (
+        <LabeledField
+          label="Exames realizados"
+          hint={
+            lendoDocumento
+              ? "Lendo o documento..."
+              : leituraInfo
+                ? leituraInfo.extraiu
+                  ? `${leituraInfo.qtd} exame(s) identificado(s) no documento — confira e ajuste se necessário.`
+                  : "Não foi possível ler este arquivo automaticamente — selecione os exames realizados manualmente."
+                : "Anexe o documento acima para preencher automaticamente, ou selecione manualmente."
+          }
+        >
+          {entries.length === 0 ? (
+            <div style={{ fontSize: 12, color: "var(--color-muted)" }}>
+              Nenhum exame mapeado na matriz ocupacional para este tipo de ASO — verifique o cargo do colaborador.
+            </div>
           ) : (
-            <LabeledField label="Exame">
-              {entries.length === 0 ? (
-                <div style={{ fontSize: 12, color: "var(--color-muted)" }}>
-                  Nenhum exame mapeado na matriz ocupacional para este tipo de ASO — verifique o cargo do colaborador.
-                </div>
-              ) : (
-                <Select
-                  options={entries.map((e) => ({ value: e.key, label: `${e.procStr}${e.jaTem ? " (já realizado antes)" : ""}` }))}
-                  value={selectedKey ?? ""}
-                  onChange={(e) => setSelectedKey(e.target.value)}
-                />
-              )}
-            </LabeledField>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {entries.map((e) => (
+                <label key={e.key} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
+                  <input type="checkbox" checked={examesSelecionados.has(e.key)} onChange={() => toggleExame(e.key)} disabled={enviando} />
+                  {e.procStr}
+                  {e.jaTem ? <span style={{ color: "var(--color-muted)" }}> (já realizado antes)</span> : null}
+                </label>
+              ))}
+            </div>
           )}
-        </>
+        </LabeledField>
       ) : null}
 
       <div style={{ display: "grid", gridTemplateColumns: isDemissional ? "1fr" : "1fr 1fr", gap: 10 }}>
@@ -310,10 +316,6 @@ export function AnexarExameModal({
           <TextInput inputMode="decimal" value={valorInput} onChange={(e) => setValorInput(e.target.value)} placeholder="0,00" />
         </LabeledField>
       </div>
-
-      <LabeledField label="Arquivo / comprovante (opcional)" hint={file ? `Selecionado: ${file.name}` : undefined}>
-        <input type="file" onChange={handleFileChange} disabled={enviando || lendoDocumento} />
-      </LabeledField>
 
       {erro && <div style={{ marginTop: 10, fontSize: 12, fontWeight: 600, color: "var(--color-danger, #99413a)" }}>{erro}</div>}
     </Modal>

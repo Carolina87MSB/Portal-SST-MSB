@@ -36,6 +36,33 @@ function contemSubsequencia(tokens: string[], alvo: string[]): boolean {
   return false;
 }
 
+function paraIso(dia: number, mes: number, ano: number): string | null {
+  if (mes < 1 || mes > 12 || dia < 1 || dia > 31) return null;
+  const d = new Date(ano, mes - 1, dia);
+  if (d.getFullYear() !== ano || d.getMonth() !== mes - 1 || d.getDate() !== dia) return null;
+  return `${ano}-${String(mes).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
+}
+
+const REGEX_DATA = /(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})/g;
+
+/** Tenta achar a data de realização no texto do documento — prioriza uma data logo
+ * perto da palavra "data" (rótulo comum em laudos/ASOs: "Data da realização: ..."). Sem
+ * um rótulo claro, só assume quando existe exatamente UMA data no documento inteiro —
+ * evita escolher errado entre várias datas (nascimento, emissão, validade etc.). */
+function extrairDataDoTexto(texto: string): string | null {
+  const comRotulo = /data[^0-9]{0,25}?(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})/i.exec(texto);
+  if (comRotulo) {
+    const iso = paraIso(Number(comRotulo[1]), Number(comRotulo[2]), Number(comRotulo[3]));
+    if (iso) return iso;
+  }
+  const todas = [...texto.matchAll(REGEX_DATA)];
+  if (todas.length === 1) {
+    const [, dia, mes, ano] = todas[0];
+    return paraIso(Number(dia), Number(mes), Number(ano));
+  }
+  return null;
+}
+
 async function extrairTextoPdf(file: File): Promise<string> {
   const buffer = await file.arrayBuffer();
   const pdf = await getDocument({ data: buffer }).promise;
@@ -54,20 +81,23 @@ export interface LeituraExamesResult {
   /** false quando o arquivo não é um PDF com texto legível (ex.: digitalização/foto) — a UI deve pedir seleção manual. */
   extraiu: boolean;
   keysEncontradas: string[];
+  /** "aaaa-mm-dd" pronto pro <input type="date">, ou null quando não achou (ou achou mais de uma data candidata). */
+  dataRealizacaoIso: string | null;
 }
 
-/** Identifica, dentre `entries`, quais exames são citados no PDF anexado. */
+/** Identifica, dentre `entries`, quais exames são citados no PDF anexado, e tenta achar a
+ * data de realização no texto. */
 export async function lerExamesDoDocumento(file: File, entries: ExameMatrizEntry[]): Promise<LeituraExamesResult> {
   const ehPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
-  if (!ehPdf) return { extraiu: false, keysEncontradas: [] };
+  if (!ehPdf) return { extraiu: false, keysEncontradas: [], dataRealizacaoIso: null };
 
   let texto = "";
   try {
     texto = await extrairTextoPdf(file);
   } catch {
-    return { extraiu: false, keysEncontradas: [] };
+    return { extraiu: false, keysEncontradas: [], dataRealizacaoIso: null };
   }
-  if (texto.trim().length < 10) return { extraiu: false, keysEncontradas: [] };
+  if (texto.trim().length < 10) return { extraiu: false, keysEncontradas: [], dataRealizacaoIso: null };
 
   const tokensDoc = tokenizar(texto);
   const keysEncontradas: string[] = [];
@@ -79,5 +109,5 @@ export async function lerExamesDoDocumento(file: File, entries: ExameMatrizEntry
     if (codigoBate || nomeBate) keysEncontradas.push(entry.key);
   }
 
-  return { extraiu: true, keysEncontradas };
+  return { extraiu: true, keysEncontradas, dataRealizacaoIso: extrairDataDoTexto(texto) };
 }

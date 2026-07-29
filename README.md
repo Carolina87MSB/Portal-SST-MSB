@@ -86,14 +86,18 @@ Antes, todo anexo (exame ocupacional, ficha de EPI assinada) virava base64 e fic
 
 As 3 tabelas novas têm RLS permissiva para `authenticated` (mesma regra de acesso que já existia: qualquer conta do portal é RH, não há distinção de perfil aqui) — ver os `create policy ... for all to authenticated` no fim de `supabase/schema.sql`. Rode o schema atualizado no Supabase Dashboard (idempotente, pode rodar de novo com segurança) antes de usar essas telas em produção; sem isso, os uploads falham com erro visível na tela (não silenciosamente).
 
-### ASO Demissional: leitura automática do PDF anexado
+### Anexar exame ocupacional: leitura automática do PDF, para qualquer tipo de ASO
 
-No modal "Anexar exame ocupacional", quando o tipo de ASO é **Demissional**, o formulário muda de comportamento em relação aos outros tipos:
+No modal "Anexar exame ocupacional" (fora do fluxo com exame já travado, ex.: clicar em "Anexar" numa linha específica da ficha), o formulário funciona assim para **qualquer tipo de ASO** — Admissional, Periódico, Retorno ao trabalho, Mudança de risco/função ou Demissional:
 
-- Não pede "Próxima data prevista" (o colaborador está saindo — não há próximo exame a agendar; o campo é gravado como `"—"`, mesmo sentinela de "não se aplica" já usado em outros lugares do app).
-- O seletor de exame único vira uma lista de checkboxes com todos os exames mapeados na matriz ocupacional para o cargo, permitindo lançar vários exames de uma vez (um ASO demissional normalmente cobre vários exames no mesmo laudo).
-- Ao anexar um PDF, o app tenta ler o texto do documento **no próprio navegador** (via `pdfjs-dist`, carregado sob demanda só nesse fluxo — não pesa no bundle principal) e pré-marca automaticamente os exames cujo nome ou código apareçam no texto (`src/domain/lerDocumentoExame.ts`). O RH sempre pode revisar e ajustar as marcações antes de salvar.
-- Essa leitura só funciona com PDFs que tenham texto selecionável — digitalizações/fotos escaneadas como imagem não têm camada de texto para extrair; nesse caso o app avisa e pede seleção manual. Não há nenhuma chamada a serviço externo/IA — é só correspondência de texto local, sem custo.
+1. **Colaborador → Tipo de ASO → Arquivo/comprovante → Exames realizados** (nessa ordem) — o campo de arquivo vem logo depois do tipo, porque a leitura do documento é o que geralmente decide quais exames marcar.
+2. O seletor de exame é sempre uma lista de checkboxes com os exames mapeados na matriz ocupacional para o cargo/tipo escolhido — permite lançar vários exames de uma vez (um ASO normalmente cobre uma bateria inteira num único laudo, não só o Demissional).
+3. Ao anexar um PDF, o app tenta ler o texto do documento **no próprio navegador** (via `pdfjs-dist`, carregado sob demanda só nesse fluxo — não pesa no bundle principal, `src/domain/lerDocumentoExame.ts`) e:
+   - pré-marca os exames cujo nome ou código apareçam no texto;
+   - pré-preenche "Data de realização" quando encontra uma data perto da palavra "data" no texto (ex.: "Data da realização: 07/07/2026"), ou quando existe exatamente uma data no documento inteiro — na dúvida (várias datas sem rótulo claro), deixa em branco em vez de arriscar a data errada.
+4. O RH sempre pode revisar/ajustar as marcações e a data antes de salvar. Essa leitura só funciona com PDFs que tenham texto selecionável — digitalizações/fotos escaneadas como imagem não têm camada de texto para extrair; nesse caso o app avisa e pede preenchimento manual. Não há nenhuma chamada a serviço externo/IA — é só correspondência de texto local, sem custo.
+5. "Valor do exame" continua vindo pré-preenchido do catálogo de preços quando disponível (primeiro exame marcado). **"Fornecedor / clínica" nunca é pré-preenchido** — o catálogo guarda um fornecedor "padrão" de referência, mas quem realmente atendeu pode ter sido outra clínica, então esse campo sempre começa em branco para digitação manual.
+6. Só para **Demissional**: "Próxima data prevista" some do formulário (o colaborador está saindo, não há próximo exame a agendar — gravado como `"—"`, mesmo sentinela de "não se aplica" usado em outros lugares do app). Para os demais tipos, o campo continua aparecendo, calculado a partir da periodicidade do primeiro exame marcado (ajustável manualmente).
 
 ### Fardamento, preços, matriz adicionada, custos e log — também migrados do localStorage
 
