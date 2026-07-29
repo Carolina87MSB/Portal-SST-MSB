@@ -31,3 +31,7 @@ src/data/colaboradores.json
 # SQL gerado sob demanda (scripts/gen-cargo-departamento-sql.mjs) a partir de
 # planilhas com CPF/nome reais — sempre local, nunca commitado.
 supabase/local/
+
+# Scripts SQL avulsos de correção pontual de dados reais (gerados ad-hoc numa
+# conversa, para rodar manualmente no SQL Editor do Supabase) — nunca commitados.
+supabase/*.local.sql

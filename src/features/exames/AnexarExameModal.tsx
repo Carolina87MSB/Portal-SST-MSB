@@ -58,6 +58,7 @@ export function AnexarExameModal({
   const [proximoTouched, setProximoTouched] = useState(false);
   const [fornecedor, setFornecedor] = useState("");
   const [valorInput, setValorInput] = useState("");
+  const [valoresPorExame, setValoresPorExame] = useState<Record<string, string>>({});
   const [file, setFile] = useState<File | null>(null);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -77,6 +78,7 @@ export function AnexarExameModal({
   useEffect(() => {
     if (procLocked) return;
     setExamesSelecionados(new Set());
+    setValoresPorExame({});
     setLeituraInfo(null);
   }, [entries, procLocked]);
 
@@ -108,14 +110,31 @@ export function AnexarExameModal({
   // Valor sugerido a partir do catálogo — o fornecedor/clínica NÃO é sugerido de propósito:
   // o catálogo guarda um fornecedor "padrão", mas quem realizou o exame pode ter sido uma
   // clínica diferente, então esse campo sempre começa em branco para digitação manual.
+  // Só se aplica ao caso de exame único travado — no fluxo com lista de checkboxes, cada
+  // exame tem seu próprio valor (ver prefillValores()), já que um ASO com exames
+  // complementares (ex.: clínica + exame de sangue) não tem o mesmo preço para todos.
   useEffect(() => {
-    const codigo = procLocked ? selectedEntry?.codigo : primeiroExameSelecionado?.codigo;
-    if (!codigo) return;
-    const preco = examePrecos[codigo];
+    if (!procLocked || !selectedEntry?.codigo) return;
+    const preco = examePrecos[selectedEntry.codigo];
     if (!preco?.valor) return;
     setValorInput((prev) => prev || String(preco.valor));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [procLocked, selectedEntry?.codigo, primeiroExameSelecionado?.codigo]);
+  }, [procLocked, selectedEntry?.codigo]);
+
+  /** Preenche o valor de cada exame recém-marcado com o preço do catálogo (se houver e se
+   * ainda não tiver um valor digitado) — nunca sobrescreve um valor que o RH já ajustou. */
+  function prefillValores(keys: Iterable<string>) {
+    setValoresPorExame((prev) => {
+      const next = { ...prev };
+      for (const key of keys) {
+        if (next[key] !== undefined) continue;
+        const entry = entries.find((e) => e.key === key);
+        const preco = entry?.codigo ? examePrecos[entry.codigo] : undefined;
+        next[key] = preco?.valor ? String(preco.valor) : "";
+      }
+      return next;
+    });
+  }
 
   useEffect(() => {
     if (isDemissional || proximoTouched || !dataRealizadaIso) return;
@@ -139,6 +158,11 @@ export function AnexarExameModal({
       else next.add(key);
       return next;
     });
+    prefillValores([key]);
+  }
+
+  function setValorExame(key: string, value: string) {
+    setValoresPorExame((prev) => ({ ...prev, [key]: value }));
   }
 
   async function handleSubmit() {
@@ -170,7 +194,8 @@ export function AnexarExameModal({
     }
 
     // Um ou mais exames marcados (manualmente ou pela leitura automática do documento) —
-    // cada um vira um registro próprio, todos com a mesma data/fornecedor/valor/comprovante.
+    // cada um vira um registro próprio, com a mesma data/fornecedor/comprovante, mas com o
+    // SEU PRÓPRIO valor (um ASO com exames complementares não tem o mesmo preço para todos).
     const proximoParaTodos = isDemissional ? "—" : proximoBR.trim();
     for (const entry of entries.filter((e) => examesSelecionados.has(e.key))) {
       const result = await onSave({
@@ -179,7 +204,7 @@ export function AnexarExameModal({
         dataISO: isoToBR(dataRealizadaIso),
         proximo: proximoParaTodos,
         fornecedor: fornecedor.trim(),
-        valor: Number(String(valorInput).replace(",", ".")) || 0,
+        valor: Number(String(valoresPorExame[entry.key] ?? "").replace(",", ".")) || 0,
         file,
       });
       if (!result.ok) {
@@ -205,7 +230,10 @@ export function AnexarExameModal({
     const resultado = await lerExamesDoDocumento(novoArquivo, entries);
     setLendoDocumento(false);
     setLeituraInfo({ extraiu: resultado.extraiu, qtd: resultado.keysEncontradas.length, motivoFalha: resultado.motivoFalha });
-    if (resultado.keysEncontradas.length > 0) setExamesSelecionados(new Set(resultado.keysEncontradas));
+    if (resultado.keysEncontradas.length > 0) {
+      setExamesSelecionados(new Set(resultado.keysEncontradas));
+      prefillValores(resultado.keysEncontradas);
+    }
     if (resultado.dataRealizacaoIso && !dataRealizadaIso) setDataRealizadaIso(resultado.dataRealizacaoIso);
   }
 
@@ -278,13 +306,29 @@ export function AnexarExameModal({
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              {entries.map((e) => (
-                <label key={e.key} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
-                  <input type="checkbox" checked={examesSelecionados.has(e.key)} onChange={() => toggleExame(e.key)} disabled={enviando} />
-                  {e.procStr}
-                  {e.jaTem ? <span style={{ color: "var(--color-muted)" }}> (já realizado antes)</span> : null}
-                </label>
-              ))}
+              {entries.map((e) => {
+                const marcado = examesSelecionados.has(e.key);
+                return (
+                  <div key={e.key} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, flex: 1 }}>
+                      <input type="checkbox" checked={marcado} onChange={() => toggleExame(e.key)} disabled={enviando} />
+                      {e.procStr}
+                      {e.jaTem ? <span style={{ color: "var(--color-muted)" }}> (já realizado antes)</span> : null}
+                    </label>
+                    {marcado ? (
+                      <TextInput
+                        inputMode="decimal"
+                        value={valoresPorExame[e.key] ?? ""}
+                        onChange={(ev) => setValorExame(e.key, ev.target.value)}
+                        placeholder="0,00"
+                        disabled={enviando}
+                        style={{ width: 84, flex: "none" }}
+                        title={`Valor de ${e.procStr}`}
+                      />
+                    ) : null}
+                  </div>
+                );
+              })}
             </div>
           )}
         </LabeledField>
@@ -308,13 +352,15 @@ export function AnexarExameModal({
         ) : null}
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+      <div style={{ display: "grid", gridTemplateColumns: procLocked ? "1fr 1fr" : "1fr", gap: 10 }}>
         <LabeledField label="Fornecedor / clínica">
           <TextInput value={fornecedor} onChange={(e) => setFornecedor(e.target.value)} placeholder="Nome da clínica" />
         </LabeledField>
-        <LabeledField label="Valor do exame (R$)">
-          <TextInput inputMode="decimal" value={valorInput} onChange={(e) => setValorInput(e.target.value)} placeholder="0,00" />
-        </LabeledField>
+        {procLocked ? (
+          <LabeledField label="Valor do exame (R$)">
+            <TextInput inputMode="decimal" value={valorInput} onChange={(e) => setValorInput(e.target.value)} placeholder="0,00" />
+          </LabeledField>
+        ) : null}
       </div>
 
       {erro && <div style={{ marginTop: 10, fontSize: 12, fontWeight: 600, color: "var(--color-danger, #99413a)" }}>{erro}</div>}
