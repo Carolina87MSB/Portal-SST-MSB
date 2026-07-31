@@ -13,12 +13,15 @@ export function iniciais(nome: string | null | undefined): string {
   return (primeira + ultima).toUpperCase();
 }
 
-/** Normaliza nomes de cargo/função para comparação (remove acentos, sufixos de senioridade). */
+/** Normaliza nomes de cargo/função para comparação (remove acentos, sufixos de senioridade,
+ * marcador de gênero neutro "(a)" em qualquer posição — ex.: "Diretor (a) Industrial" bate
+ * com "Diretor Industrial" na matriz ocupacional/EPI). */
 export function normalizeCargo(value: string | null | undefined): string {
   return String(value ?? "")
     .toUpperCase()
+    .replace(/\s*\(A\)\s*/g, " ")
     .replace(/\s+/g, " ")
-    .replace(/\s*(I{1,3}|JR|JÚNIOR|SR|SÊNIOR|PLENO|\(A\))\s*$/, "")
+    .replace(/\s*(I{1,3}|JR|JÚNIOR|SR|SÊNIOR|PLENO)\s*$/, "")
     .trim();
 }
 

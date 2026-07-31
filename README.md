@@ -111,6 +111,10 @@ Na mesma linha da seção acima: fardamento (entregas/reparos), os catálogos de
 
 Rode o schema atualizado no Supabase Dashboard antes de usar essas telas em produção (mesmo aviso da seção anterior — idempotente, seguro rodar de novo).
 
+### Marcador de gênero neutro "(a)" nos nomes de cargo
+
+Vários cargos de liderança passaram a usar "(a)" no nome (ex.: "Diretor (a) Industrial", "Supervisor (a) de Operações de Vendas"). `normalizeCargo()` (`src/domain/text.ts`), usada pela matriz ocupacional (`cargoOcupacionalPara()`) e pela matriz de EPI (`matrizEpiParaColaborador()`) em `src/domain/matriz.ts` para casar `colaboradores.cargo` com o catálogo, agora remove "(a)" em qualquer posição do texto antes de comparar — sem isso, um cargo cadastrado na matriz como "Supervisor de Operações de Vendas" pararia de bater assim que o colaborador passasse a ter "Supervisor (a) de Operações de Vendas" gravado.
+
 ## Arquitetura
 
 ```
