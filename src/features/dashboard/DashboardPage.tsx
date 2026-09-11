@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { CalendarClock, ClipboardCheck, FileSignature, ShieldCheck, TriangleAlert, UserMinus, Users } from "lucide-react";
+import { CalendarClock, ClipboardCheck, FileCheck2, FileSignature, ShieldCheck, TriangleAlert, UserMinus, Users } from "lucide-react";
 import { Card, DonutChart, GroupedBarChart, KpiCard, SegmentedControl, StatusBadge, Table, Td, Th, THead, Tr } from "../../components/ui";
 import { useAuth } from "../../auth/AuthContext";
 import { ExameFichaDrawer } from "../exames/ExameFichaDrawer";
@@ -101,6 +101,27 @@ export function DashboardPage() {
               ))}
             </tbody>
           </Table>
+        </Card>
+      ) : null}
+
+      {/* Programas de Saúde Ocupacional (PCMSO/PGR) próximos do vencimento ou vencidos —
+          só lê data.programasAtencao (novo, aditivo); não altera os KPIs abaixo. */}
+      {canEdit && data.programasAtencao.length > 0 ? (
+        <Card className={[styles.sectionCard, styles.pendenteDesligamentoCard].join(" ")}>
+          <div className={styles.sectionHeader}>
+            <div>
+              <div className={styles.sectionTitle}>
+                <FileCheck2 size={15} style={{ marginRight: 6, verticalAlign: -2 }} />
+                Programas de Saúde Ocupacional — atenção necessária
+              </div>
+              <div className={styles.sectionSubtitle}>
+                {data.programasAtencao.map((p) => `${p.programa}: ${p.status}`).join(" · ")} — ver detalhes e histórico em
+              </div>
+            </div>
+            <Link to="/programas" className={styles.link}>
+              Ver Programas de SST →
+            </Link>
+          </div>
         </Card>
       ) : null}
 

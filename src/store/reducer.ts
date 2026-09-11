@@ -68,6 +68,12 @@ export function portalReducer(state: PortalState, action: PortalAction): PortalS
     case "SET_MATRIZ_ADD":
       return { ...state, matrizAdd: action.matrizAdd };
 
+    case "SET_PROGRAMAS_SAUDE":
+      return { ...state, programasSaude: action.programasSaude };
+
+    case "ADICIONAR_VERSAO_PROGRAMA":
+      return { ...state, programasSaude: [action.versao, ...state.programasSaude] };
+
     case "SET_CUSTOS_EPI":
       return { ...state, custosEpi: action.custosEpi };
 

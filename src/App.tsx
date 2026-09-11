@@ -10,6 +10,7 @@ import { ExamesPage } from "./features/exames/ExamesPage";
 import { RelatoriosPage } from "./features/relatorios/RelatoriosPage";
 import { ConfigPage } from "./features/config/ConfigPage";
 import { AcessosPage } from "./features/acessos/AcessosPage";
+import { ProgramasPage } from "./features/programas/ProgramasPage";
 
 function App() {
   return (
@@ -29,6 +30,7 @@ function App() {
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/epi/*" element={<EpiPage />} />
               <Route path="/exames/*" element={<ExamesPage />} />
+              <Route path="/programas" element={<ProgramasPage />} />
               <Route path="/relatorios" element={<RelatoriosPage />} />
               <Route path="/config" element={<ConfigPage />} />
               <Route path="/acessos" element={<AcessosPage />} />

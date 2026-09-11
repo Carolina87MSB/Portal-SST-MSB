@@ -1,11 +1,12 @@
 import { NavLink } from "react-router-dom";
-import { FileBarChart2, KeyRound, LayoutDashboard, Settings, ShieldCheck, Stethoscope } from "lucide-react";
+import { FileBarChart2, FileCheck2, KeyRound, LayoutDashboard, Settings, ShieldCheck, Stethoscope } from "lucide-react";
 import styles from "./Sidebar.module.css";
 
 const NAV_ITEMS = [
   { to: "/dashboard", label: "Dashboard SST", icon: LayoutDashboard },
   { to: "/epi", label: "Gestão de EPI", icon: ShieldCheck },
   { to: "/exames", label: "Exames Ocupacionais", icon: Stethoscope },
+  { to: "/programas", label: "Programas de SST", icon: FileCheck2 },
   { to: "/relatorios", label: "Relatórios", icon: FileBarChart2 },
   { to: "/config", label: "Configurações", icon: Settings },
   { to: "/acessos", label: "Controle de Acessos", icon: KeyRound },

@@ -71,6 +71,7 @@ export function buildInitialState(): PortalState {
     fardamentoEntregas: [],
     fardamentoReparos: [],
     matrizAdd: [],
+    programasSaude: [],
     custosEpi: [],
     custosFardamento: [],
     log: [],

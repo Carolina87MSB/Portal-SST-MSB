@@ -7,6 +7,7 @@ import { statusDoRegistro, toneForStatus } from "../../domain/exameStatus";
 import type { ContextoIdadeExame } from "../../domain/exameStatus";
 import type { BadgeTone } from "../../domain/exameStatus";
 import { statusFichaEpi } from "../../domain/fichaAssinatura";
+import { computeProgramaStatus, versoesMaisRecentes } from "../../domain/programaStatus";
 import type { Colaborador, ExameRegistro } from "../../types/domain";
 
 interface ExameFlat {
@@ -267,9 +268,17 @@ export function useDashboardData() {
       ];
     });
 
+    // ---------- alerta de Programas de Saúde Ocupacional (PCMSO/PGR) ----------
+    // Só lê `state.programasSaude` (novo, aditivo) — não toca em nenhum dos
+    // cálculos de exames/EPI acima.
+    const programasAtencao = versoesMaisRecentes(state.programasSaude)
+      .map((v) => ({ programa: v.programa, status: computeProgramaStatus(v.vigenciaFim, v.precisaoFim) }))
+      .filter((p) => p.status !== "Vigente");
+
     return {
       kpi,
       pctEmDia,
+      programasAtencao,
       donutLegend: [
         { label: "Em dia", count: statusCount["Em dia"], color: "var(--color-brand)" },
         { label: "A vencer", count: statusCount["A vencer"], color: "var(--color-warning-bg)" },

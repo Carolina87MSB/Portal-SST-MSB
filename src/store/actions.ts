@@ -10,6 +10,7 @@ import type {
   FichaEntregaEpi,
   LogEntry,
   PrecoInfo,
+  ProgramaSaude,
 } from "../types/domain";
 import type { CustoMesEpi, CustoMesFardamento } from "./types";
 
@@ -34,6 +35,10 @@ export type PortalAction =
   | { type: "SET_EXAME_PRECOS"; examePrecos: Record<string, PrecoInfo> }
   | { type: "SET_FARDAMENTO_PRECOS"; fardamentoPrecos: Record<string, PrecoInfo> }
   | { type: "SET_MATRIZ_ADD"; matrizAdd: CargoOcupacional[] }
+  | { type: "SET_PROGRAMAS_SAUDE"; programasSaude: ProgramaSaude[] }
+  // `versao` já vem persistida (ver programasSaudeRepository.registrarVersaoPrograma) —
+  // só acrescenta ao histórico local, nunca substitui uma versão anterior.
+  | { type: "ADICIONAR_VERSAO_PROGRAMA"; versao: ProgramaSaude }
   | { type: "SET_CUSTOS_EPI"; custosEpi: CustoMesEpi[] }
   | { type: "SET_CUSTOS_FARDAMENTO"; custosFardamento: CustoMesFardamento[] }
   | { type: "SET_LOG"; log: LogEntry[] }

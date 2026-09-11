@@ -95,6 +95,42 @@ export interface FonteOcupacional {
   cnae: string;
 }
 
+export type NomePrograma = "PCMSO" | "PGR";
+
+export type StatusPrograma = "Vigente" | "Próximo do vencimento" | "Vencido";
+
+/** Precisão da data de vigência conhecida — "mes" quando o documento/texto de
+ * origem só informa mês/ano (ex.: "vigência 04/2024–04/2025"), sem inventar o
+ * dia. Vira "dia" quando o RH confirma a data exata pela tela. */
+export type PrecisaoData = "dia" | "mes";
+
+/**
+ * Uma versão de um Programa de Saúde Ocupacional (PCMSO ou PGR). Cada
+ * renovação/atualização gera uma linha NOVA (nunca sobrescreve a anterior) —
+ * ver `sst_programas_saude` no Supabase. O status de vencimento é sempre
+ * calculado a partir da versão mais recente de cada `programa`.
+ */
+export interface ProgramaSaude {
+  id: string;
+  programa: NomePrograma;
+  descricao: string;
+  /** "aaaa-mm-dd" ou "aaaa-mm", conforme `precisaoFim`. */
+  vigenciaInicio: string;
+  vigenciaFim: string;
+  precisaoFim: PrecisaoData;
+  /** true depois que o RH confirma a data (exata ou o mês/ano) pela tela —
+   * enquanto false, é só uma extração automática aguardando conferência. */
+  confirmado: boolean;
+  confirmadoPor: string;
+  confirmadoEm: string;
+  /** De onde veio essa versão: texto já cadastrado na matriz, ou o nome do PDF carregado. */
+  origem: string;
+  fileName: string;
+  storagePath?: string;
+  registradoPor: string;
+  ts: string;
+}
+
 export interface MatrizOcupacional {
   fonte: FonteOcupacional;
   catalogoExames: CatalogoExameOcupacional[];

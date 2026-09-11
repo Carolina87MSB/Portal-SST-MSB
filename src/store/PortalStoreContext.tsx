@@ -9,6 +9,7 @@ import { getEntregasEpi, getFichasEpi } from "../repositories/fichasEpiRepositor
 import { getFardamentoEntregas, getFardamentoReparos } from "../repositories/fardamentoRepository";
 import { getEpiPrecos, getExamePrecos, getFardamentoPrecos } from "../repositories/precosRepository";
 import { getMatrizAddCargos } from "../repositories/matrizAddRepository";
+import { getProgramasSaude } from "../repositories/programasSaudeRepository";
 import { getCustosEpiMes, getCustosFardamentoMes } from "../repositories/custosRepository";
 import { getLog } from "../repositories/logRepository";
 import type { PortalAction } from "./actions";
@@ -156,6 +157,12 @@ export function PortalStoreProvider({ children }: { children: ReactNode }) {
       .then((matrizAdd) => {
         if (cancelado) return;
         dispatch({ type: "SET_MATRIZ_ADD", matrizAdd });
+      })
+      .catch(() => {});
+    getProgramasSaude()
+      .then((programasSaude) => {
+        if (cancelado) return;
+        dispatch({ type: "SET_PROGRAMAS_SAUDE", programasSaude });
       })
       .catch(() => {});
     getCustosEpiMes()

@@ -11,6 +11,7 @@ import type {
   FichaEntregaEpi,
   LogEntry,
   PrecoInfo,
+  ProgramaSaude,
 } from "../types/domain";
 
 export interface CustoMesEpi {
@@ -48,6 +49,7 @@ export interface PortalState {
   fardamentoEntregas: FardamentoEntrega[];
   fardamentoReparos: FardamentoReparo[];
   matrizAdd: CargoOcupacional[];
+  programasSaude: ProgramaSaude[];
   custosEpi: CustoMesEpi[];
   custosFardamento: CustoMesFardamento[];
   log: LogEntry[];

@@ -420,3 +420,36 @@ create policy "authenticated_full_access_aso_demissional_pendentes"
   to authenticated
   using (true)
   with check (true);
+
+-- Programas de Saúde Ocupacional (PCMSO/PGR) — histórico de versões. Cada
+-- renovação/atualização gera uma linha nova (nunca sobrescreve a anterior);
+-- o status de vencimento usa sempre a versão mais recente de cada `programa`.
+-- Ver ProgramaSaude em src/types/domain.ts.
+create table if not exists public.sst_programas_saude (
+  id text primary key,
+  programa text not null,
+  descricao text not null default '',
+  vigencia_inicio text not null default '',
+  vigencia_fim text not null default '',
+  precisao_fim text not null default 'dia',
+  confirmado boolean not null default false,
+  confirmado_por text not null default '',
+  confirmado_em text not null default '',
+  origem text not null default '',
+  file_name text not null default '',
+  storage_path text,
+  registrado_por text not null default '',
+  ts text not null default '',
+  created_at timestamptz not null default now()
+);
+
+comment on table public.sst_programas_saude is
+  'Histórico de versões dos Programas de Saúde Ocupacional (PCMSO/PGR) — cada linha é uma versão/renovação, nunca sobrescrita.';
+
+alter table public.sst_programas_saude enable row level security;
+drop policy if exists "authenticated_full_access_programas_saude" on public.sst_programas_saude;
+create policy "authenticated_full_access_programas_saude"
+  on public.sst_programas_saude for all
+  to authenticated
+  using (true)
+  with check (true);
