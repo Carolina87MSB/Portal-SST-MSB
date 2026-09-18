@@ -142,7 +142,7 @@ export function ColaboradoresTab() {
                             {divergencia.obrigatorios.length} EPIs
                           </button>
                         ) : (
-                          <span className={shared.pillWarning}>Pendente de classificação</span>
+                          <span className={shared.pillWarning}>Não necessita de EPI</span>
                         )}
                         {divergencia.semEntrega.length > 0 ? (
                           <span className={shared.pillDanger}>{divergencia.semEntrega.length} sem entrega</span>
